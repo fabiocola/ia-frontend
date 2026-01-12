@@ -5,8 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Orquestrador de IAs</title>
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Para renderizar Markdown -->
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
+        /* Estilos (sem alterações ) */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; display: flex; height: 100vh; }
         #app { display: flex; width: 100%; height: 100%; }
         .sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; }
@@ -20,6 +21,7 @@
         .assistant .content { background-color: #e9e9eb; color: #333; }
         .input-area { padding: 20px; border-top: 1px solid #ddd; background-color: #f8f9fa; }
         textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; resize: none; box-sizing: border-box; }
+        input[type="file"] { margin-top: 10px; }
         button { width: 100%; padding: 12px; margin-top: 10px; border: none; background-color: #007bff; color: white; font-size: 16px; border-radius: 8px; cursor: pointer; }
         button:disabled { background-color: #999; }
     </style>
@@ -28,22 +30,23 @@
     <div id="app">
         <div class="sidebar">
             <h2>Histórico</h2>
-            <div class="chat-history">
-                <!-- O histórico de chats irá aqui -->
-            </div>
+            <div class="chat-history"></div>
         </div>
         <div class="main-content">
             <div class="chat-window" ref="chatWindow">
                 <div v-for="message in chat" :key="message.id" class="message" :class="message.role">
-                    <div class="content" v-html="renderMarkdown(message.content )"></div>
+                    <div class="content" v-html="renderMarkdown(message.content)"></div>
                 </div>
             </div>
             <div class="input-area">
                 <textarea v-model="newMessage" @keydown.enter.prevent="sendMessage" placeholder="Digite sua pergunta..."></textarea>
+                
+                <!-- MUDANÇA 1: Adicionado 'multiple' para permitir vários arquivos -->
+                <input type="file" ref="fileInput" multiple accept=".pdf">
+
                 <button @click="sendMessage" :disabled="isLoading">
                     {{ isLoading ? 'Analisando...' : 'Enviar' }}
                 </button>
-                <!-- Funcionalidade de upload será adicionada aqui -->
             </div>
         </div>
     </div>
@@ -54,12 +57,10 @@
         createApp({
             data() {
                 return {
-                    chat: [
-                        { id: 1, role: 'assistant', content: 'Olá! Como posso ajudar você hoje?' }
-                    ],
+                    chat: [{ id: 1, role: 'assistant', content: 'Olá! Posso analisar múltiplos documentos para você.' }],
                     newMessage: '',
                     isLoading: false,
-                    apiUrl: 'https://meu-orquestrador-ia.onrender.com/ask' // SUA API DE BACKEND
+                    apiUrl: 'https://meu-orquestrador-ia.onrender.com/ask'
                 };
             },
             methods: {
@@ -76,6 +77,14 @@
                     try {
                         const formData = new FormData();
                         formData.append('question', question);
+
+                        // MUDANÇA 2: Loop para adicionar múltiplos arquivos
+                        const files = this.$refs.fileInput.files;
+                        if (files.length > 0) {
+                            for (let i = 0; i < files.length; i++) {
+                                formData.append('files', files[i]); // Note o 's' em 'files'
+                            }
+                        }
 
                         const response = await fetch(this.apiUrl, {
                             method: 'POST',
@@ -96,14 +105,12 @@
                         this.chat.push(errorMessage);
                     } finally {
                         this.isLoading = false;
+                        this.$refs.fileInput.value = ''; // Limpa os arquivos selecionados
                         this.scrollToBottom();
                     }
                 },
                 scrollToBottom() {
-                    this.$nextTick(() => {
-                        const chatWindow = this.$refs.chatWindow;
-                        chatWindow.scrollTop = chatWindow.scrollHeight;
-                    });
+                    this.$nextTick(() => { this.$refs.chatWindow.scrollTop = this.$refs.chatWindow.scrollHeight; });
                 },
                 renderMarkdown(content) {
                     return marked.parse(content);
@@ -113,3 +120,4 @@
     </script>
 </body>
 </html>
+
