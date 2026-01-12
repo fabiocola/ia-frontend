@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Orquestrador de IAs</title>
+    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script> <!-- Para renderizar Markdown -->
+    <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; display: flex; height: 100vh; }
+        #app { display: flex; width: 100%; height: 100%; }
+        .sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; }
+        .sidebar h2 { font-size: 1.1em; padding: 10px; margin: 0; }
+        .chat-history { flex-grow: 1; overflow-y: auto; }
+        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: #ffffff; }
+        .chat-window { flex-grow: 1; overflow-y: auto; padding: 20px; }
+        .message { margin-bottom: 20px; display: flex; }
+        .message .content { max-width: 80%; padding: 12px; border-radius: 18px; line-height: 1.5; }
+        .user .content { background-color: #007bff; color: white; margin-left: auto; }
+        .assistant .content { background-color: #e9e9eb; color: #333; }
+        .input-area { padding: 20px; border-top: 1px solid #ddd; background-color: #f8f9fa; }
+        textarea { width: 100%; padding: 10px; border: 1px solid #ccc; border-radius: 8px; font-size: 16px; resize: none; box-sizing: border-box; }
+        button { width: 100%; padding: 12px; margin-top: 10px; border: none; background-color: #007bff; color: white; font-size: 16px; border-radius: 8px; cursor: pointer; }
+        button:disabled { background-color: #999; }
+    </style>
+</head>
+<body>
+    <div id="app">
+        <div class="sidebar">
+            <h2>Histórico</h2>
+            <div class="chat-history">
+                <!-- O histórico de chats irá aqui -->
+            </div>
+        </div>
+        <div class="main-content">
+            <div class="chat-window" ref="chatWindow">
+                <div v-for="message in chat" :key="message.id" class="message" :class="message.role">
+                    <div class="content" v-html="renderMarkdown(message.content )"></div>
+                </div>
+            </div>
+            <div class="input-area">
+                <textarea v-model="newMessage" @keydown.enter.prevent="sendMessage" placeholder="Digite sua pergunta..."></textarea>
+                <button @click="sendMessage" :disabled="isLoading">
+                    {{ isLoading ? 'Analisando...' : 'Enviar' }}
+                </button>
+                <!-- Funcionalidade de upload será adicionada aqui -->
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const { createApp } = Vue;
+
+        createApp({
+            data() {
+                return {
+                    chat: [
+                        { id: 1, role: 'assistant', content: 'Olá! Como posso ajudar você hoje?' }
+                    ],
+                    newMessage: '',
+                    isLoading: false,
+                    apiUrl: 'https://meu-orquestrador-ia.onrender.com/ask' // SUA API DE BACKEND
+                };
+            },
+            methods: {
+                async sendMessage( ) {
+                    if (!this.newMessage.trim() || this.isLoading) return;
+
+                    const userMessage = { id: Date.now(), role: 'user', content: this.newMessage };
+                    this.chat.push(userMessage);
+                    const question = this.newMessage;
+                    this.newMessage = '';
+                    this.isLoading = true;
+                    this.scrollToBottom();
+
+                    try {
+                        const formData = new FormData();
+                        formData.append('question', question);
+
+                        const response = await fetch(this.apiUrl, {
+                            method: 'POST',
+                            body: formData
+                        });
+
+                        if (!response.ok) {
+                            const errorData = await response.json();
+                            throw new Error(errorData.detail || 'Erro na API');
+                        }
+
+                        const data = await response.json();
+                        const assistantMessage = { id: Date.now() + 1, role: 'assistant', content: data.response };
+                        this.chat.push(assistantMessage);
+
+                    } catch (error) {
+                        const errorMessage = { id: Date.now() + 1, role: 'assistant', content: `Ocorreu um erro: ${error.message}` };
+                        this.chat.push(errorMessage);
+                    } finally {
+                        this.isLoading = false;
+                        this.scrollToBottom();
+                    }
+                },
+                scrollToBottom() {
+                    this.$nextTick(() => {
+                        const chatWindow = this.$refs.chatWindow;
+                        chatWindow.scrollTop = chatWindow.scrollHeight;
+                    });
+                },
+                renderMarkdown(content) {
+                    return marked.parse(content);
+                }
+            }
+        }).mount('#app');
+    </script>
+</body>
+</html>
