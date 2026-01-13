@@ -7,141 +7,111 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* Estilos (combinados e atualizados ) */
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; display: flex; height: 100vh; }
+        /* Estilos atualizados para suportar as novas funcionalidades */
+        body, html { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; height: 100%; }
         #app { display: flex; width: 100%; height: 100%; }
         .sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; border-right: 1px solid #333; }
-        .sidebar h2 { font-size: 1.1em; padding: 10px; margin: 0; }
-        .new-chat-btn { background-color: #343541; color: white; border: 1px solid #555; border-radius: 5px; padding: 10px; margin-bottom: 10px; cursor: pointer; text-align: center; }
-        .chat-history { flex-grow: 1; overflow-y: auto; }
-        .chat-history-item { padding: 10px; cursor: pointer; border-radius: 5px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .new-chat-btn { /* ... */ }
+        .chat-history-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; cursor: pointer; border-radius: 5px; }
         .chat-history-item:hover { background-color: #343541; }
         .chat-history-item.active { background-color: #444654; }
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: #ffffff; }
-        .chat-window { flex-grow: 1; overflow-y: auto; padding: 20px; }
-        .message { margin-bottom: 20px; display: flex; }
-        .message .content { max-width: 80%; padding: 12px; border-radius: 18px; line-height: 1.5; }
-        .user .content { background-color: #007bff; color: white; margin-left: auto; }
-        .assistant .content { background-color: #e9e9eb; color: #333; }
-        .input-area { padding: 15px; border-top: 1px solid #ddd; background-color: #f8f9fa; }
-        .input-wrapper { position: relative; display: flex; align-items: center; }
-        textarea { flex-grow: 1; padding: 10px 50px 10px 45px; border: 1px solid #ccc; border-radius: 20px; font-size: 16px; resize: none; box-sizing: border-box; height: 44px; max-height: 200px; }
-        .upload-btn { position: absolute; left: 10px; top: 50%; transform: translateY(-50%); background: #ddd; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .send-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #007bff; border: none; border-radius: 50%; width: 30px; height: 30px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .send-btn:disabled { background-color: #999; }
-        .file-preview-area { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 10px; }
-        .file-pill { background-color: #e0e0e0; padding: 5px 10px; border-radius: 15px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
-        .remove-file-btn { background: none; border: none; cursor: pointer; font-weight: bold; }
+        .chat-title { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .chat-actions button { background: none; border: none; color: #aaa; cursor: pointer; visibility: hidden; }
+        .chat-history-item:hover .chat-actions button { visibility: visible; }
+        /* ... (outros estilos ) ... */
     </style>
 </head>
 <body>
     <div id="app">
         <div class="sidebar">
             <h2>Conversas</h2>
-            <div class="new-chat-btn" @click="createNewChat">Nova Conversa (+)</div>
+            <div class="new-chat-btn" @click="startNewConversation">Nova Conversa (+)</div>
             <div class="chat-history">
                 <div v-for="chatItem in chatHistory" :key="chatItem.id" class="chat-history-item" :class="{ 'active': activeChatId === chatItem.id }" @click="loadChat(chatItem.id)">
-                    {{ chatItem.title }}
-                </div>
-            </div>
-        </div>
-        <div class="main-content">
-            <div class="chat-window" ref="chatWindow">
-                <div v-if="activeChatId === null" style="text-align: center; color: #888; margin-top: 50px;">
-                    Selecione uma conversa ou inicie uma nova.
-                </div>
-                <div v-for="message in activeChatMessages" :key="message.id" class="message" :class="message.role">
-                    <div class="content" v-html="renderMarkdown(message.content)"></div>
-                </div>
-            </div>
-            <div class="input-area">
-                <div class="file-preview-area">
-                    <div v-for="(file, index) in selectedFiles" :key="index" class="file-pill">
-                        <span>{{ file.name }}</span>
-                        <button @click="removeFile(index)" class="remove-file-btn">x</button>
+                    <span class="chat-title" @dblclick="startEditingTitle(chatItem)" v-if="!chatItem.editing">{{ chatItem.title }}</span>
+                    <input v-if="chatItem.editing" type="text" v-model="chatItem.newTitle" @blur="saveTitle(chatItem)" @keydown.enter="saveTitle(chatItem)" @keydown.esc="cancelEditing(chatItem)">
+                    <div class="chat-actions">
+                        <button @click.stop="startEditingTitle(chatItem)">✏️</button>
+                        <button @click.stop="deleteChat(chatItem.id)">🗑️</button>
                     </div>
                 </div>
-                <div class="input-wrapper">
-                    <button class="upload-btn" @click="triggerFileInput" :disabled="isLoading || activeChatId === null">+</button>
-                    <input type="file" ref="fileInput" @change="onFileSelect" multiple accept=".pdf,.docx,.txt" style="display: none;">
-                    <textarea v-model="newMessage" @keydown.enter.prevent="sendMessage" placeholder="Digite sua pergunta..." :disabled="isLoading || activeChatId === null"></textarea>
-                    <button @click="sendMessage" :disabled="isLoading || !newMessage.trim()" class="send-btn">
-                        <svg v-if="!isLoading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11Z"/></svg>
-                        <span v-else>...</span>
-                    </button>
-                </div>
             </div>
         </div>
+        <!-- O resto do HTML (main-content, etc.) -->
     </div>
 
     <script>
         const { createApp } = Vue;
-
         createApp({
-            data( ) {
-                return {
-                    chatHistory: [],
-                    activeChatId: null,
-                    activeChatMessages: [],
-                    newMessage: '',
-                    isLoading: false,
-                    apiUrl: 'https://meu-orquestrador-ia.onrender.com',
-                    selectedFiles: []
-                };
-            },
-            mounted( ) { this.loadChatHistory(); },
+            data() { /* ... */ },
+            mounted() { /* ... */ },
             methods: {
-                async loadChatHistory() { /* ... (sem alterações) ... */ },
-                async createNewChat() { /* ... (sem alterações) ... */ },
-                async loadChat(chatId) { /* ... (sem alterações) ... */ },
+                startNewConversation() {
+                    this.activeChatId = null;
+                    this.activeChatMessages = [];
+                    // Opcional: pode limpar os arquivos selecionados também
+                },
                 async sendMessage() {
-                    if (!this.newMessage.trim() || this.isLoading || !this.activeChatId) return;
+                    if (!this.newMessage.trim() || this.isLoading) return;
 
-                    const userMessageContent = this.newMessage;
-                    this.activeChatMessages.push({ role: 'user', content: userMessageContent, id: Date.now() });
-                    this.newMessage = '';
-                    this.isLoading = true;
-                    this.scrollToBottom();
+                    let currentChatId = this.activeChatId;
 
-                    try {
-                        const formData = new FormData();
-                        formData.append('user_message_content', userMessageContent);
-                        
-                        this.selectedFiles.forEach(file => {
-                            formData.append('files', file);
-                        });
-
-                        const response = await fetch(`${this.apiUrl}/chats/${this.activeChatId}/messages`, {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (!response.ok) throw new Error('Erro ao obter resposta da IA.');
-
-                        const data = await response.json();
-                        this.activeChatMessages.push({ role: 'assistant', content: data.response, id: Date.now() + 1 });
-
-                    } catch (error) {
-                        this.activeChatMessages.push({ role: 'assistant', content: `Ocorreu um erro: ${error.message}`, id: Date.now() + 1 });
-                    } finally {
-                        this.isLoading = false;
-                        this.selectedFiles = []; // Limpa os arquivos após o envio
-                        this.scrollToBottom();
+                    // **LÓGICA DE INÍCIO IMPLÍCITO**
+                    if (currentChatId === null) {
+                        try {
+                            const response = await fetch(`${this.apiUrl}/chats`, { method: 'POST' });
+                            const newChat = await response.json();
+                            this.chatHistory.unshift(newChat);
+                            currentChatId = newChat.id;
+                            this.activeChatId = newChat.id;
+                        } catch (error) {
+                            // Lidar com erro de criação de chat
+                            return;
+                        }
+                    }
+                    
+                    // ... (resto da lógica de envio, usando currentChatId) ...
+                    
+                    // Após receber a resposta, se for uma conversa nova, atualiza o título
+                    if (this.activeChatMessages.length === 2) { // 1 do user, 1 do assistant
+                        this.loadChatHistory(); // Recarrega o histórico para pegar o novo título
                     }
                 },
-                triggerFileInput() { this.$refs.fileInput.click(); },
-                onFileSelect(event) {
-                    const files = Array.from(event.target.files);
-                    this.addFiles(files);
+                startEditingTitle(chatItem) {
+                    this.chatHistory.forEach(c => c.editing = false); // Garante que só um está sendo editado
+                    chatItem.newTitle = chatItem.title;
+                    chatItem.editing = true;
                 },
-                addFiles(files) {
-                    files.forEach(file => {
-                        if (this.selectedFiles.length < 10) this.selectedFiles.push(file);
-                    });
+                cancelEditing(chatItem) {
+                    chatItem.editing = false;
                 },
-                removeFile(index) { this.selectedFiles.splice(index, 1); },
-                scrollToBottom() { /* ... (sem alterações) ... */ },
-                renderMarkdown(content) { /* ... (sem alterações) ... */ }
+                async saveTitle(chatItem) {
+                    if (!chatItem.newTitle.trim()) return;
+                    try {
+                        await fetch(`${this.apiUrl}/chats/${chatItem.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ title: chatItem.newTitle })
+                        });
+                        chatItem.title = chatItem.newTitle;
+                        chatItem.editing = false;
+                    } catch (error) {
+                        console.error("Erro ao renomear:", error);
+                    }
+                },
+                async deleteChat(chatId) {
+                    if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
+                    try {
+                        await fetch(`${this.apiUrl}/chats/${chatId}`, { method: 'DELETE' });
+                        this.chatHistory = this.chatHistory.filter(c => c.id !== chatId);
+                        if (this.activeChatId === chatId) {
+                            this.startNewConversation();
+                        }
+                    } catch (error) {
+                        console.error("Erro ao apagar:", error);
+                    }
+                },
+                // ... (outros métodos) ...
             }
         }).mount('#app');
     </script>
