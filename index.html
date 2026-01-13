@@ -7,7 +7,6 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        /* Estilos (sem alterações, mas incluídos para ser completo ) */
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; margin: 0; background-color: #f0f2f5; display: flex; height: 100vh; }
         #app { display: flex; width: 100%; height: 100%; }
         .sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; border-right: 1px solid #333; }
@@ -26,7 +25,7 @@
         .input-area { padding: 15px; border-top: 1px solid #ddd; background-color: #f8f9fa; }
         .input-wrapper { position: relative; display: flex; align-items: center; }
         textarea { flex-grow: 1; padding: 10px 50px 10px 15px; border: 1px solid #ccc; border-radius: 20px; font-size: 16px; resize: none; box-sizing: border-box; height: 44px; max-height: 200px; }
-        .send-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #007bff; border: none; border-radius: 50%; width: 30px; height: 30px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+        .send-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50% ); background: #007bff; border: none; border-radius: 50%; width: 30px; height: 30px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
         .send-btn:disabled { background-color: #999; }
     </style>
 </head>
@@ -130,7 +129,7 @@
                     if (!this.newMessage.trim() || this.isLoading || !this.activeChatId) return;
 
                     const userMessageContent = this.newMessage;
-                    this.activeChatMessages.push({ role: 'user', content: userMessageContent });
+                    this.activeChatMessages.push({ role: 'user', content: userMessageContent, id: Date.now() });
                     this.newMessage = '';
                     this.isLoading = true;
                     this.scrollToBottom();
@@ -149,10 +148,10 @@
                         }
 
                         const data = await response.json();
-                        this.activeChatMessages.push({ role: 'assistant', content: data.response });
+                        this.activeChatMessages.push({ role: 'assistant', content: data.response, id: Date.now() + 1 });
 
                     } catch (error) {
-                        this.activeChatMessages.push({ role: 'assistant', content: `Ocorreu um erro: ${error.message}` });
+                        this.activeChatMessages.push({ role: 'assistant', content: `Ocorreu um erro: ${error.message}`, id: Date.now() + 1 });
                     } finally {
                         this.isLoading = false;
                         this.scrollToBottom();
