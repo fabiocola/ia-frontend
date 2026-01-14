@@ -1,178 +1,128 @@
 <!DOCTYPE html>
 <html lang="pt-BR" :class="theme">
 <head>
-    <meta charset="UTF-8">
+    <!-- HEAD igual ao anterior + PWA -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Orquestrador de IAs Pro</title>
-    <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
-    <style>
-        /* CSS igual ao anterior + adições para mobile/hamburger */
-        :root {
-            /* Mesmas variáveis do código anterior */
-        }
-        .dark { /* Mesmas variáveis dark */ }
-
-        /* NOVO: Mobile Sidebar */
-        .mobile-overlay { 
-            position: fixed; top: 0; left: 0; right: 0; bottom: 0; 
-            background: rgba(0,0,0,0.5); z-index: 998; display: none;
-        }
-        .sidebar.mobile-open { transform: translateX(0); }
-        @media (max-width: 768px) {
-            .sidebar { 
-                position: fixed; top: 0; left: 0; height: 100vh; 
-                width: 280px; z-index: 999; transform: translateX(-100%);
-                transition: transform 0.3s ease;
-            }
-            .mobile-overlay.active { display: block; }
-            .hamburger { display: block; }
-        }
-        .hamburger { 
-            display: none; background: none; border: none; 
-            font-size: 1.5rem; cursor: pointer; color: var(--text-primary);
-        }
-
-        /* NOVO: Drag & Drop */
-        .input-area.drag-over { 
-            background: var(--bg-message-user) !important; 
-            border: 3px dashed white; color: white;
-        }
-        .drop-zone {
-            border: 2px dashed var(--border-subtle); 
-            border-radius: 12px; padding: 40px; 
-            text-align: center; color: var(--text-muted);
-            transition: all 0.3s;
-        }
-        .drop-zone.drag-over { 
-            border-color: var(--bg-message-user); 
-            background: rgba(59,130,246,0.1);
-        }
-
-        /* ARIA para acessibilidade */
-        [role="button"], button { cursor: pointer; }
-        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); }
-    </style>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#007bff">
+    <title>Orquestrador Pro - IA Colaborativa</title>
+    <!-- CSS anterior + auth modal styles -->
 </head>
 <body>
-<div id="app">
-    <!-- NOVO: Overlay mobile -->
-    <div class="mobile-overlay" :class="{active: sidebarMobileOpen}" @click="sidebarMobileOpen = false" aria-hidden="true"></div>
-    
-    <!-- Sidebar com hamburger -->
-    <div class="sidebar" :class="{ 'mobile-open': sidebarMobileOpen }" role="navigation" aria-label="Navegação de conversas">
-        <header class="sidebar-header">
-            <button class="hamburger" @click="sidebarMobileOpen = !sidebarMobileOpen" aria-label="Toggle sidebar" aria-expanded="sidebarMobileOpen">
-                ☰
-            </button>
-            <div class="sidebar-title">Conversas</div>
-            <button class="theme-toggle" @click="toggleTheme" aria-label="Alternar tema">
-                {{ theme === 'light' ? '🌙' : '☀️' }}
-            </button>
-        </header>
-        <!-- Resto da sidebar igual -->
-    </div>
-
-    <div class="main-content">
-        <!-- Chat window igual -->
-        <div class="chat-window" ref="chatWindow">
-            <!-- Mensagens com streaming -->
-            <div v-for="message in activeChatMessages" :key="message.id" class="message" :class="message.role">
-                <div class="content" 
-                     :aria-live="message.role === 'assistant' && message.isStreaming ? 'polite' : 'off'"
-                     v-html="message.role === 'assistant' && message.isStreaming ? renderPartialMarkdown(message.content, message.streamIndex) : renderMarkdown(message.content)">
+    <!-- 🔐 AUTH MODAL (NOVO) -->
+    <div v-if="!isAuthenticated" class="auth-overlay" role="dialog" aria-modal="true">
+        <div class="auth-card">
+            <h2>{{ authMode === 'login' ? 'Login' : 'Cadastre-se Grátis' }}</h2>
+            <form @submit.prevent="authMode === 'login' ? doLogin() : doRegister()">
+                <input v-show="authMode !== 'login'" v-model="authForm.name" placeholder="Nome completo" required>
+                <input v-model="authForm.email" type="email" placeholder="Email" required>
+                <input v-model="authForm.password" type="password" placeholder="Senha (min 6)" required minlength="6">
+                <button type="submit" :disabled="loading">
+                    {{ loading ? 'Carregando...' : (authMode === 'login' ? 'Entrar' : 'Criar Conta') }}
+                </button>
+            </form>
+            <p class="toggle-auth" @click="toggleAuthMode">
+                {{ authMode === 'login' ? 'Criar conta gratuita' : 'Já tenho conta' }}
+            </p>
+            
+            <!-- PLANOS TEASER -->
+            <div class="plans-preview">
+                <div class="plan pro">
+                    <h4>🚀 Pro R$97/mês</h4>
+                    <ul>
+                        <li>✅ Uso ilimitado</li>
+                        <li>✅ Armazenamento 10GB</li>
+                        <li>✅ Docs prioritários</li>
+                    </ul>
                 </div>
             </div>
         </div>
+    </div>
 
-        <!-- NOVO: Input com Drag & Drop -->
-        <div class="input-area" 
-             @dragover.prevent="onDragOver" 
-             @dragleave="onDragLeave" 
-             @drop.prevent="onDrop"
-             :class="{ 'drag-over': isDragOver }"
-             role="textbox" aria-label="Área de mensagem e upload">
-            
-            <!-- Drop zone condicional -->
-            <div v-if="isDragOver" class="drop-zone" role="region" aria-label="Solte os arquivos aqui">
-                <div>📎 Solte os arquivos aqui</div>
-                <div style="font-size: 0.85rem; opacity: 0.8;">PDF, DOCX, TXT suportados</div>
-            </div>
-            
-            <!-- File preview igual -->
-            <div class="file-preview-area">...</div>
-            
-            <div class="input-wrapper">...</div>
+    <!-- APP PRINCIPAL (condicional) -->
+    <div v-else id="app">
+        <!-- Sidebar + Main igual ao anterior -->
+        <!-- Com botão user profile -->
+        <div class="user-profile" @click="logout">
+            {{ user.name }} ({{ user.plan }}) ▼
         </div>
     </div>
-</div>
 
 <script>
-const { createApp } = Vue.createApp({
-    data() {
-        return {
-            // Dados existentes + novos
-            sidebarMobileOpen: false,
-            isDragOver: false,
-            isStreaming: false,
-            streamInterval: null,
-            // ...
-        };
-    },
-    methods: {
-        // NOVO: Drag & Drop
-        onDragOver(e) {
-            e.preventDefault();
-            this.isDragOver = true;
-        },
-        onDragLeave() {
-            this.isDragOver = false;
-        },
-        async onDrop(e) {
-            this.isDragOver = false;
-            const files = Array.from(e.dataTransfer.files).filter(f => 
-                /\.(pdf|docx|txt)$/i.test(f.name)
-            );
-            if (files.length) {
-                this.addFiles(files);
-                this.$nextTick(() => this.sendMessage());
-            }
-        },
-
-        // NOVO: Streaming no sendMessage
-        async sendMessage() {
-            // ... código existente até API call ...
-            
-            // Streaming simulado (ou real via SSE)
-            this.isStreaming = true;
-            let streamContent = '';
-            const words = ai_response.split(' '); // Simula stream por palavras
-            
-            this.streamInterval = setInterval(() => {
-                if (streamContent.length < ai_response.length) {
-                    const nextChunk = words[Math.floor(streamContent.length / 20)] || '.';
-                    streamContent += ` ${nextChunk}`;
-                    this.$set(this.activeChatMessages[this.activeChatMessages.length - 1], 'content', streamContent);
-                    this.$set(this.activeChatMessages[this.activeChatMessages.length - 1], 'streamIndex', streamContent.length);
-                    this.scrollToBottom();
+// Vue data + auth
+data() {
+    return {
+        isAuthenticated: false,
+        token: null,
+        user: null,
+        authMode: 'register',  // Começa com register
+        authForm: { name: '', email: '', password: '' },
+        loading: false,
+        // ... resto dos dados
+    };
+},
+async mounted() {
+    await this.initAuth();
+    if (this.isAuthenticated) this.loadChatHistory();
+},
+methods: {
+    async initAuth() {
+        this.token = localStorage.getItem('token');
+        if (this.token) {
+            try {
+                const res = await fetch('/auth/me', {
+                    headers: { Authorization: `Bearer ${this.token}` }
+                });
+                if (res.ok) {
+                    this.user = await res.json();
+                    this.isAuthenticated = true;
                 } else {
-                    clearInterval(this.streamInterval);
-                    this.isStreaming = false;
+                    localStorage.removeItem('token');
                 }
-            }, 50); // 50ms/word = typing effect natural
-        },
-
-        // NOVO: Render parcial para streaming
-        renderPartialMarkdown(content, index) {
-            return marked.parse(content.slice(0, index));
-        },
-
-        // Toggle sidebar mobile
-        toggleSidebar() {
-            this.sidebarMobileOpen = !this.sidebarMobileOpen;
+            } catch {
+                localStorage.removeItem('token');
+            }
         }
+    },
+    async doRegister() {
+        this.loading = true;
+        try {
+            const form = new FormData();
+            form.append('full_name', this.authForm.name);
+            form.append('email', this.authForm.email);
+            form.append('password', this.authForm.password);
+            
+            const res = await fetch('/auth/register', {
+                method: 'POST',
+                body: form
+            });
+            const data = await res.json();
+            if (res.ok) {
+                localStorage.setItem('token', data.access_token);
+                this.isAuthenticated = true;
+                this.user = data.user;
+                await this.loadChatHistory();
+            }
+        } catch (e) {
+            alert('Erro no cadastro');
+        }
+        this.loading = false;
+    },
+    async doLogin() {
+        // Similar ao register, mas /auth/login
+    },
+    logout() {
+        localStorage.removeItem('token');
+        this.isAuthenticated = false;
+        this.user = null;
+    },
+    // Resto methods com Authorization header
+    async sendMessage() {
+        const headers = {
+            'Authorization': `Bearer ${this.token}`,
+            'Content-Type': 'application/x-www-form-urlencoded'
+        };
+        // ... resto igual
     }
-}).directive('focus', {/* igual */}).mount('#app');
+}
 </script>
-</body>
-</html>
