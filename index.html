@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="pt-BR">
+<html lang="pt-BR" :class="theme">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,250 +7,686 @@
     <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
     <style>
-        body, html { margin: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif; background-color: #f0f2f5; height: 100%; }
-        #app { display: flex; width: 100%; height: 100%; }
-        .sidebar { width: 260px; background-color: #202123; color: white; display: flex; flex-direction: column; padding: 10px; border-right: 1px solid #333; }
-        .sidebar h2 { font-size: 1.1em; padding: 10px; margin: 0; }
-        .new-chat-btn { background-color: #343541; color: white; border: 1px solid #555; border-radius: 5px; padding: 10px; margin-bottom: 10px; cursor: pointer; text-align: center; }
-        .chat-history { flex-grow: 1; overflow-y: auto; }
-        .chat-history-item { display: flex; align-items: center; justify-content: space-between; padding: 10px; cursor: pointer; border-radius: 5px; }
-        .chat-history-item:hover { background-color: #343541; }
-        .chat-history-item.active { background-color: #444654; }
-        .chat-title { flex-grow: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding-right: 10px; }
-        .chat-actions { display: flex; }
-        .chat-actions button { background: none; border: none; color: #aaa; cursor: pointer; visibility: hidden; font-size: 14px; padding: 2px; }
-        .chat-history-item:hover .chat-actions button { visibility: visible; }
-        .chat-history-item:hover .chat-actions button:hover { color: white; }
-        .main-content { flex-grow: 1; display: flex; flex-direction: column; background-color: #ffffff; }
-        .chat-window { flex-grow: 1; overflow-y: auto; padding: 20px; }
-        .message { margin-bottom: 20px; display: flex; }
-        .message .content { max-width: 80%; padding: 12px; border-radius: 18px; line-height: 1.5; word-wrap: break-word; }
-        .user .content { background-color: #007bff; color: white; margin-left: auto; }
-        .assistant .content { background-color: #e9e9eb; color: #333; }
-        .input-area { padding: 15px; border-top: 1px solid #ddd; background-color: #f8f9fa; }
-        .file-preview-area { display: flex; flex-wrap: wrap; gap: 10px; margin-bottom: 10px; }
-        .file-pill { background-color: #e0e0e0; padding: 5px 10px; border-radius: 15px; font-size: 12px; display: flex; align-items: center; gap: 5px; }
-        .remove-file-btn { background: none; border: none; cursor: pointer; font-weight: bold; padding: 0; }
-        .input-wrapper { position: relative; display: flex; align-items: center; }
-        textarea { flex-grow: 1; padding: 10px 50px 10px 45px; border: 1px solid #ccc; border-radius: 20px; font-size: 16px; resize: none; box-sizing: border-box; height: 44px; max-height: 200px; }
-        .upload-btn { position: absolute; left: 10px; top: 50%; transform: translateY(-50% ); background: #ddd; border: none; border-radius: 50%; width: 30px; height: 30px; font-size: 20px; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .send-btn { position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: #007bff; border: none; border-radius: 50%; width: 30px; height: 30px; color: white; cursor: pointer; display: flex; align-items: center; justify-content: center; }
-        .send-btn:disabled { background-color: #999; }
+        :root {
+            --bg-body: #f0f2f5;
+            --bg-sidebar: #202123;
+            --bg-main: #ffffff;
+            --bg-message-user: #007bff;
+            --bg-message-assistant: #e9e9eb;
+            --bg-input: #f8f9fa;
+            --border-subtle: #ddd;
+            --text-primary: #111827;
+            --text-muted: #9ca3af;
+            --sidebar-border: #333;
+        }
+
+        .dark {
+            --bg-body: #050509;
+            --bg-sidebar: #171717;
+            --bg-main: #050509;
+            --bg-message-user: #2563eb;
+            --bg-message-assistant: #111827;
+            --bg-input: #050509;
+            --border-subtle: #1f2933;
+            --text-primary: #e5e7eb;
+            --text-muted: #6b7280;
+            --sidebar-border: #27272a;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body, html {
+            margin: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            background-color: var(--bg-body);
+            color: var(--text-primary);
+            height: 100%;
+        }
+
+        #app {
+            display: flex;
+            width: 100%;
+            height: 100vh;
+        }
+
+        /* SIDEBAR */
+
+        .sidebar {
+            width: 260px;
+            background-color: var(--bg-sidebar);
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 12px;
+            border-right: 1px solid var(--sidebar-border);
+        }
+
+        .sidebar-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .sidebar-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+        }
+
+        .theme-toggle {
+            border: 1px solid #4b5563;
+            background: transparent;
+            color: #e5e7eb;
+            border-radius: 999px;
+            padding: 4px 10px;
+            font-size: 0.75rem;
+            cursor: pointer;
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+        }
+
+        .theme-toggle:hover {
+            background: rgba(255, 255, 255, 0.06);
+        }
+
+        .new-chat-btn {
+            background-color: #343541;
+            color: white;
+            border: 1px solid #555;
+            border-radius: 6px;
+            padding: 10px;
+            margin-bottom: 10px;
+            cursor: pointer;
+            text-align: left;
+            font-size: 0.9rem;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .new-chat-btn span {
+            font-size: 1.1rem;
+        }
+
+        .chat-history {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding-right: 4px;
+        }
+
+        .chat-history-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 8px;
+            cursor: pointer;
+            border-radius: 6px;
+            font-size: 0.85rem;
+            color: #e5e7eb;
+        }
+
+        .chat-history-item:hover {
+            background-color: #343541;
+        }
+
+        .chat-history-item.active {
+            background-color: #444654;
+        }
+
+        .chat-title {
+            flex-grow: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            padding-right: 10px;
+        }
+
+        .chat-actions {
+            display: flex;
+            gap: 2px;
+        }
+
+        .chat-actions button {
+            background: none;
+            border: none;
+            color: #9ca3af;
+            cursor: pointer;
+            visibility: hidden;
+            font-size: 14px;
+            padding: 2px;
+        }
+
+        .chat-history-item:hover .chat-actions button {
+            visibility: visible;
+        }
+
+        .chat-history-item:hover .chat-actions button:hover {
+            color: white;
+        }
+
+        /* MAIN CONTENT */
+
+        .main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            background-color: var(--bg-main);
+        }
+
+        .chat-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 24px 18%;
+        }
+
+        @media (max-width: 1024px) {
+            .chat-window {
+                padding: 16px 8%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .sidebar {
+                display: none;
+            }
+            .chat-window {
+                padding: 16px 12px;
+            }
+        }
+
+        .empty-state {
+            text-align: center;
+            color: var(--text-muted);
+            margin-top: 60px;
+            font-size: 0.95rem;
+        }
+
+        /* MENSAGENS */
+
+        .message {
+            margin-bottom: 20px;
+            display: flex;
+            position: relative;
+        }
+
+        .message .content {
+            max-width: 80%;
+            padding: 12px 14px;
+            border-radius: 18px;
+            line-height: 1.5;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+
+        .user {
+            justify-content: flex-end;
+        }
+
+        .user .content {
+            background-color: var(--bg-message-user);
+            color: white;
+            border-bottom-right-radius: 6px;
+        }
+
+        .assistant .content {
+            background-color: var(--bg-message-assistant);
+            color: var(--text-primary);
+            border-bottom-left-radius: 6px;
+        }
+
+        .message .actions {
+            display: none;
+            position: absolute;
+            bottom: -18px;
+            left: 10px;
+            background: var(--bg-main);
+            border-radius: 10px;
+            padding: 2px 5px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border: 1px solid var(--border-subtle);
+        }
+
+        .assistant:hover .actions {
+            display: block;
+        }
+
+        .message .actions button {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            padding: 4px;
+        }
+
+        /* ÁREA DE INPUT */
+
+        .input-area {
+            padding: 12px 18%;
+            border-top: 1px solid var(--border-subtle);
+            background-color: var(--bg-input);
+        }
+
+        @media (max-width: 1024px) {
+            .input-area {
+                padding: 10px 8%;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .input-area {
+                padding: 10px 12px 16px;
+            }
+        }
+
+        .file-preview-area {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .file-pill {
+            background-color: #e5e7eb;
+            padding: 5px 10px;
+            border-radius: 12px;
+            font-size: 11px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .dark .file-pill {
+            background-color: #1f2933;
+            color: #e5e7eb;
+        }
+
+        .remove-file-btn {
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-weight: bold;
+            padding: 0;
+            font-size: 12px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+        }
+
+        textarea {
+            flex-grow: 1;
+            padding: 10px 48px 10px 46px;
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            font-size: 15px;
+            resize: none;
+            box-sizing: border-box;
+            min-height: 44px;
+            max-height: 250px;
+            overflow-y: auto;
+            line-height: 1.5;
+            background-color: var(--bg-main);
+            color: var(--text-primary);
+        }
+
+        textarea:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 1px rgba(59,130,246,0.3);
+        }
+
+        .upload-btn {
+            position: absolute;
+            left: 10px;
+            bottom: 7px;
+            background: #e5e7eb;
+            border: none;
+            border-radius: 50%;
+            width: 28px;
+            height: 28px;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #374151;
+        }
+
+        .dark .upload-btn {
+            background: #111827;
+            color: #e5e7eb;
+        }
+
+        .upload-btn:disabled {
+            opacity: 0.5;
+            cursor: default;
+        }
+
+        .send-btn {
+            position: absolute;
+            right: 10px;
+            bottom: 7px;
+            background: #007bff;
+            border: none;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+            color: white;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .send-btn:disabled {
+            background-color: #9ca3af;
+            cursor: default;
+        }
     </style>
 </head>
 <body>
-    <div id="app">
-        <div class="sidebar">
-            <h2>Conversas</h2>
-            <div class="new-chat-btn" @click="startNewConversation">Nova Conversa (+)</div>
-            <div class="chat-history">
-                <div v-for="chatItem in chatHistory" :key="chatItem.id" class="chat-history-item" :class="{ 'active': activeChatId === chatItem.id }" @click="loadChat(chatItem.id)">
-                    <span class="chat-title" @dblclick="startEditingTitle(chatItem)" v-if="!chatItem.editing">{{ chatItem.title }}</span>
-                    <input v-if="chatItem.editing" type="text" v-model="chatItem.newTitle" @blur="saveTitle(chatItem)" @keydown.enter.prevent="saveTitle(chatItem)" @keydown.esc="cancelEditing(chatItem)" v-focus>
-                    <div class="chat-actions">
-                        <button @click.stop="startEditingTitle(chatItem)">✏️</button>
-                        <button @click.stop="deleteChat(chatItem.id)">🗑️</button>
-                    </div>
-                </div>
-            </div>
+<div id="app">
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-title">Conversas</div>
+            <button class="theme-toggle" @click="toggleTheme">
+                <span v-if="theme === 'light'">🌙</span>
+                <span v-else>☀️</span>
+                <span>{{ theme === 'light' ? 'Escuro' : 'Claro' }}</span>
+            </button>
         </div>
-        <div class="main-content">
-            <div class="chat-window" ref="chatWindow">
-                <div v-if="activeChatId === null && activeChatMessages.length === 0" style="text-align: center; color: #888; margin-top: 50px;">
-                    Digite uma mensagem para começar uma nova conversa.
-                </div>
-                <div v-for="message in activeChatMessages" :key="message.id" class="message" :class="message.role">
-                    <div class="content" v-html="renderMarkdown(message.content)"></div>
-                </div>
-            </div>
-            <div class="input-area">
-                <div class="file-preview-area">
-                    <div v-for="(file, index) in selectedFiles" :key="index" class="file-pill">
-                        <span>{{ file.name }}</span>
-                        <button @click="removeFile(index)" class="remove-file-btn">x</button>
-                    </div>
-                </div>
-                <div class="input-wrapper">
-                    <button class="upload-btn" @click="triggerFileInput" :disabled="isLoading">+</button>
-                    <input type="file" ref="fileInput" @change="onFileSelect" multiple accept=".pdf,.docx,.txt" style="display: none;">
-                    <textarea v-model="newMessage" @keydown.enter.prevent="sendMessage" placeholder="Digite sua pergunta..." :disabled="isLoading"></textarea>
-                    <button @click="sendMessage" :disabled="isLoading || !newMessage.trim()" class="send-btn">
-                        <svg v-if="!isLoading" xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" viewBox="0 0 16 16"><path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11Z"/></svg>
-                        <span v-else>...</span>
-                    </button>
+
+        <div class="new-chat-btn" @click="startNewConversation">
+            <span>+</span>
+            <span>Nova conversa</span>
+        </div>
+
+        <div class="chat-history">
+            <div v-for="chatItem in chatHistory"
+                 :key="chatItem.id"
+                 class="chat-history-item"
+                 :class="{ 'active': activeChatId === chatItem.id }"
+                 @click="loadChat(chatItem.id)">
+                <span class="chat-title"
+                      @dblclick="startEditingTitle(chatItem)"
+                      v-if="!chatItem.editing">{{ chatItem.title }}</span>
+
+                <input v-if="chatItem.editing"
+                       type="text"
+                       v-model="chatItem.newTitle"
+                       @blur="saveTitle(chatItem)"
+                       @keydown.enter.prevent="saveTitle(chatItem)"
+                       @keydown.esc="cancelEditing(chatItem)"
+                       v-focus>
+
+                <div class="chat-actions">
+                    <button @click.stop="startEditingTitle(chatItem)" title="Renomear">✏️</button>
+                    <button @click.stop="deleteChat(chatItem.id)" title="Apagar">🗑️</button>
                 </div>
             </div>
         </div>
     </div>
 
-    <script>
-        const { createApp } = Vue;
+    <div class="main-content">
+        <div class="chat-window" ref="chatWindow">
+            <div v-if="activeChatId === null && activeChatMessages.length === 0" class="empty-state">
+                Digite uma mensagem para começar uma nova conversa.
+            </div>
+            <div v-for="message in activeChatMessages"
+                 :key="message.id"
+                 class="message"
+                 :class="message.role">
+                <div class="content" v-html="renderMarkdown(message.content)"></div>
+                <div v-if="message.role === 'assistant'" class="actions">
+                    <button @click="exportToDocx(message.id)" title="Exportar para .docx">📄</button>
+                </div>
+            </div>
+        </div>
 
-        const app = createApp({
-            data( ) {
-                // AQUI ESTAVA O ERRO. AGORA ESTÁ CORRETO.
-                return {
-                    chatHistory: [],
-                    activeChatId: null,
-                    activeChatMessages: [],
-                    newMessage: '',
-                    isLoading: false,
-                    apiUrl: 'https://meu-orquestrador-ia.onrender.com',
-                    selectedFiles: []
-                };
-            },
-            mounted( ) {
-                this.loadChatHistory();
-            },
-            methods: {
-                startNewConversation() {
-                    this.activeChatId = null;
-                    this.activeChatMessages = [];
-                    this.selectedFiles = [];
-                },
-                async loadChatHistory() {
-                    try {
-                        const response = await fetch(`${this.apiUrl}/chats`);
-                        if (!response.ok) throw new Error('Não foi possível carregar o histórico.');
-                        this.chatHistory = await response.json();
-                    } catch (error) {
-                        console.error(error);
-                    }
-                },
-                async loadChat(chatId) {
-                    if (this.isLoading) return;
-                    this.isLoading = true;
-                    this.activeChatId = chatId;
-                    this.selectedFiles = [];
-                    try {
-                        const response = await fetch(`${this.apiUrl}/chats/${chatId}`);
-                        if (!response.ok) throw new Error('Não foi possível carregar a conversa.');
-                        const chatData = await response.json();
-                        this.activeChatMessages = chatData.messages;
-                        this.scrollToBottom();
-                    } catch (error) {
-                        console.error(error);
-                    } finally {
-                        this.isLoading = false;
-                    }
-                },
-                async sendMessage() {
-                    if (!this.newMessage.trim() || this.isLoading) return;
+        <div class="input-area">
+            <div class="file-preview-area">
+                <div v-for="(file, index) in selectedFiles" :key="index" class="file-pill">
+                    <span>{{ file.name }}</span>
+                    <button @click="removeFile(index)" class="remove-file-btn">x</button>
+                </div>
+            </div>
+            <div class="input-wrapper">
+                <button class="upload-btn" @click="triggerFileInput" :disabled="isLoading" title="Anexar arquivos">+</button>
+                <input type="file"
+                       ref="fileInput"
+                       @change="onFileSelect"
+                       multiple
+                       accept=".pdf,.docx,.txt"
+                       style="display: none;">
+                <textarea v-model="newMessage"
+                          @input="autoGrow"
+                          ref="textarea"
+                          @keydown.enter.exact.prevent="sendMessage"
+                          placeholder="Digite sua pergunta..."
+                          :disabled="isLoading"></textarea>
+                <button @click="sendMessage"
+                        :disabled="isLoading || !newMessage.trim()"
+                        class="send-btn"
+                        title="Enviar mensagem">
+                    <svg v-if="!isLoading" xmlns="http://www.w3.org/2000/svg" width="16" height="16"
+                         fill="currentColor" viewBox="0 0 16 16">
+                        <path d="M15.854.146a.5.5 0 0 1 .11.54l-5.819 14.547a.75.75 0 0 1-1.329.124l-3.178-4.995L.643 7.184a.75.75 0 0 1 .124-1.33L15.314.037a.5.5 0 0 1 .54.11ZM6.636 10.07l2.761 4.338L14.13 2.576 6.636 10.07Zm6.787-8.201L1.591 6.602l4.339 2.76 7.494-7.493Z"/>
+                    </svg>
+                    <span v-else>...</span>
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
 
-                    let currentChatId = this.activeChatId;
-                    const isNewChat = currentChatId === null;
+<script>
+    const { createApp } = Vue;
+
+    const app = createApp({
+        data() {
+            return {
+                chatHistory: [],
+                activeChatId: null,
+                activeChatMessages: [],
+                newMessage: '',
+                isLoading: false,
+                apiUrl: 'https://meu-orquestrador-ia.onrender.com',
+                selectedFiles: [],
+                theme: 'light'
+            };
+        },
+        mounted() {
+            this.loadChatHistory();
+            const storedTheme = localStorage.getItem('theme');
+            if (storedTheme === 'dark' || storedTheme === 'light') {
+                this.theme = storedTheme;
+                document.documentElement.classList.toggle('dark', this.theme === 'dark');
+            }
+        },
+        methods: {
+            toggleTheme() {
+                this.theme = this.theme === 'light' ? 'dark' : 'light';
+                localStorage.setItem('theme', this.theme);
+                document.documentElement.classList.toggle('dark', this.theme === 'dark');
+            },
+            startNewConversation() {
+                this.activeChatId = null;
+                this.activeChatMessages = [];
+                this.selectedFiles = [];
+            },
+            async loadChatHistory() {
+                try {
+                    const response = await fetch(`${this.apiUrl}/chats`);
+                    if (!response.ok) throw new Error('Não foi possível carregar o histórico.');
+                    this.chatHistory = await response.json();
+                } catch (error) {
+                    console.error(error);
+                }
+            },
+            async loadChat(chatId) {
+                if (this.isLoading) return;
+                this.isLoading = true;
+                this.activeChatId = chatId;
+                this.selectedFiles = [];
+                try {
+                    const response = await fetch(`${this.apiUrl}/chats/${chatId}`);
+                    if (!response.ok) throw new Error('Não foi possível carregar a conversa.');
+                    const chatData = await response.json();
+                    this.activeChatMessages = chatData.messages;
+                    this.scrollToBottom();
+                } catch (error) {
+                    console.error(error);
+                } finally {
+                    this.isLoading = false;
+                }
+            },
+            async sendMessage() {
+                if (!this.newMessage.trim() || this.isLoading) return;
+
+                let currentChatId = this.activeChatId;
+                const isNewChat = currentChatId === null;
+
+                if (isNewChat) {
+                    try {
+                        const response = await fetch(`${this.apiUrl}/chats`, { method: 'POST' });
+                        const newChat = await response.json();
+                        this.chatHistory.unshift(newChat);
+                        currentChatId = newChat.id;
+                        this.activeChatId = newChat.id;
+                    } catch (error) {
+                        console.error("Erro ao criar novo chat:", error);
+                        return;
+                    }
+                }
+
+                const userMessageContent = this.newMessage;
+                this.activeChatMessages.push({ role: 'user', content: userMessageContent, id: Date.now() });
+                this.newMessage = '';
+                this.autoGrow();
+                this.isLoading = true;
+                this.scrollToBottom();
+
+                try {
+                    const formData = new FormData();
+                    formData.append('user_message_content', userMessageContent);
+                    this.selectedFiles.forEach(file => formData.append('files', file));
+
+                    const response = await fetch(`${this.apiUrl}/chats/${currentChatId}/messages`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!response.ok) throw new Error('Erro ao obter resposta da IA.');
+
+                    const data = await response.json();
+                    this.activeChatMessages.push({ role: 'assistant', content: data.response, id: Date.now() + 1 });
 
                     if (isNewChat) {
-                        try {
-                            const response = await fetch(`${this.apiUrl}/chats`, { method: 'POST' });
-                            const newChat = await response.json();
-                            this.chatHistory.unshift(newChat);
-                            currentChatId = newChat.id;
-                            this.activeChatId = newChat.id;
-                        } catch (error) {
-                            console.error("Erro ao criar novo chat:", error);
-                            return;
-                        }
+                        await this.loadChatHistory();
                     }
-                    
-                    const userMessageContent = this.newMessage;
-                    this.activeChatMessages.push({ role: 'user', content: userMessageContent, id: Date.now() });
-                    this.newMessage = '';
-                    this.isLoading = true;
+
+                } catch (error) {
+                    this.activeChatMessages.push({
+                        role: 'assistant',
+                        content: `Ocorreu um erro: ${error.message}`,
+                        id: Date.now() + 1
+                    });
+                } finally {
+                    this.isLoading = false;
+                    this.selectedFiles = [];
                     this.scrollToBottom();
-
-                    try {
-                        const formData = new FormData();
-                        formData.append('user_message_content', userMessageContent);
-                        this.selectedFiles.forEach(file => formData.append('files', file));
-
-                        const response = await fetch(`${this.apiUrl}/chats/${currentChatId}/messages`, {
-                            method: 'POST',
-                            body: formData
-                        });
-
-                        if (!response.ok) throw new Error('Erro ao obter resposta da IA.');
-
-                        const data = await response.json();
-                        this.activeChatMessages.push({ role: 'assistant', content: data.response, id: Date.now() + 1 });
-
-                        if (isNewChat) {
-                            await this.loadChatHistory(); // Recarrega o histórico para pegar o novo título
-                        }
-
-                    } catch (error) {
-                        this.activeChatMessages.push({ role: 'assistant', content: `Ocorreu um erro: ${error.message}`, id: Date.now() + 1 });
-                    } finally {
-                        this.isLoading = false;
-                        this.selectedFiles = [];
-                        this.scrollToBottom();
-                    }
-                },
-                startEditingTitle(chatItem) {
-                    this.chatHistory.forEach(c => c.editing = false);
-                    chatItem.newTitle = chatItem.title;
-                    chatItem.editing = true;
-                },
-                cancelEditing(chatItem) {
-                    chatItem.editing = false;
-                },
-                async saveTitle(chatItem) {
-                    if (!chatItem.newTitle.trim()) return;
-                    try {
-                        await fetch(`${this.apiUrl}/chats/${chatItem.id}`, {
-                            method: 'PUT',
-                            headers: { 'Content-Type': 'application/json' },
-                            body: JSON.stringify({ title: chatItem.newTitle })
-                        });
-                        chatItem.title = chatItem.newTitle;
-                    } catch (error) {
-                        console.error("Erro ao renomear:", error);
-                    } finally {
-                        chatItem.editing = false;
-                    }
-                },
-                async deleteChat(chatId) {
-                    if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
-                    try {
-                        await fetch(`${this.apiUrl}/chats/${chatId}`, { method: 'DELETE' });
-                        this.chatHistory = this.chatHistory.filter(c => c.id !== chatId);
-                        if (this.activeChatId === chatId) {
-                            this.startNewConversation();
-                        }
-                    } catch (error) {
-                        console.error("Erro ao apagar:", error);
-                    }
-                },
-                triggerFileInput() { this.$refs.fileInput.click(); },
-                onFileSelect(event) {
-                    const files = Array.from(event.target.files);
-                    this.addFiles(files);
-                },
-                addFiles(files) {
-                    files.forEach(file => {
-                        if (this.selectedFiles.length < 10) this.selectedFiles.push(file);
-                    });
-                },
-                removeFile(index) { this.selectedFiles.splice(index, 1); },
-                scrollToBottom() {
-                    this.$nextTick(() => {
-                        const chatWindow = this.$refs.chatWindow;
-                        if(chatWindow) chatWindow.scrollTop = chatWindow.scrollHeight;
-                    });
-                },
-                renderMarkdown(content) {
-                    return marked.parse(content || '');
                 }
+            },
+            startEditingTitle(chatItem) {
+                this.chatHistory.forEach(c => c.editing = false);
+                chatItem.newTitle = chatItem.title;
+                chatItem.editing = true;
+            },
+            cancelEditing(chatItem) {
+                chatItem.editing = false;
+            },
+            async saveTitle(chatItem) {
+                if (!chatItem.newTitle.trim()) return;
+                try {
+                    await fetch(`${this.apiUrl}/chats/${chatItem.id}`, {
+                        method: 'PUT',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ title: chatItem.newTitle })
+                    });
+                    chatItem.title = chatItem.newTitle;
+                } catch (error) {
+                    console.error("Erro ao renomear:", error);
+                } finally {
+                    chatItem.editing = false;
+                }
+            },
+            async deleteChat(chatId) {
+                if (!confirm("Tem certeza que deseja apagar esta conversa?")) return;
+                try {
+                    await fetch(`${this.apiUrl}/chats/${chatId}`, { method: 'DELETE' });
+                    this.chatHistory = this.chatHistory.filter(c => c.id !== chatId);
+                    if (this.activeChatId === chatId) {
+                        this.startNewConversation();
+                    }
+                } catch (error) {
+                    console.error("Erro ao apagar:", error);
+                }
+            },
+            triggerFileInput() {
+                this.$refs.fileInput.click();
+            },
+            onFileSelect(event) {
+                const files = Array.from(event.target.files);
+                this.addFiles(files);
+                event.target.value = '';
+            },
+            addFiles(files) {
+                files.forEach(file => {
+                    if (this.selectedFiles.length < 10) this.selectedFiles.push(file);
+                });
+            },
+            removeFile(index) {
+                this.selectedFiles.splice(index, 1);
+            },
+            scrollToBottom() {
+                this.$nextTick(() => {
+                    const chatWindow = this.$refs.chatWindow;
+                    if (chatWindow) chatWindow.scrollTop = chatWindow.scrollHeight;
+                });
+            },
+            renderMarkdown(content) {
+                return marked.parse(content || '');
+            },
+            exportToDocx(messageId) {
+                const message = this.activeChatMessages.find(m => m.id === messageId);
+                if (!message) {
+                    console.error("Mensagem não encontrada para exportação.");
+                    return;
+                }
+                window.location.href = `${this.apiUrl}/messages/${messageId}/export/docx`;
+            },
+            autoGrow() {
+                const textarea = this.$refs.textarea;
+                if (!textarea) return;
+                textarea.style.height = 'auto';
+                textarea.style.height = textarea.scrollHeight + 'px';
             }
-        });
+        }
+    });
 
-        app.directive('focus', {
-            mounted(el) {
-                el.focus();
-            }
-        });
+    app.directive('focus', {
+        mounted(el) {
+            el.focus();
+        }
+    });
 
-        app.mount('#app');
-    </script>
+    app.mount('#app');
+</script>
 </body>
 </html>
