@@ -1,128 +1,300 @@
-<!DOCTYPE html>
-<html lang="pt-BR" :class="theme">
+<!doctype html>
+<html lang="pt-BR">
 <head>
-    <!-- HEAD igual ao anterior + PWA -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="manifest" href="/manifest.json">
-    <meta name="theme-color" content="#007bff">
-    <title>Orquestrador Pro - IA Colaborativa</title>
-    <!-- CSS anterior + auth modal styles -->
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Orquestrador IA</title>
+  <style>
+    :root { --bg:#0b0f14; --panel:#111826; --panel2:#0f1520; --text:#e6edf3; --muted:#9fb0c0; --accent:#3b82f6; --border:#1f2a3a; }
+    * { box-sizing:border-box; }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    .app { display:flex; height:100vh; overflow:hidden; }
+    .sidebar { width:320px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:transform .2s ease; }
+    .sidebar.hidden { transform: translateX(-100%); }
+    .topbar { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid var(--border); }
+    .hamburger { display:none; background:transparent; border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:10px; cursor:pointer; }
+    .btn { background:var(--accent); border:0; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
+    .btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
+    .chats { padding:10px; overflow:auto; }
+    .chat-item { padding:10px; border:1px solid var(--border); border-radius:12px; margin-bottom:8px; background:var(--panel2); cursor:pointer; }
+    .chat-item.active { border-color: var(--accent); }
+    .main { flex:1; display:flex; flex-direction:column; }
+    .header { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:rgba(17,24,38,.6); backdrop-filter: blur(8px); }
+    .title { font-weight:700; }
+    .messages { flex:1; overflow:auto; padding:16px; }
+    .msg { max-width: 900px; margin: 0 auto 12px auto; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel2); white-space:pre-wrap; line-height:1.45; }
+    .msg.user { border-color: rgba(59,130,246,.5); }
+    .meta { max-width:900px; margin:0 auto 10px auto; color:var(--muted); font-size:12px; }
+    .composer { border-top:1px solid var(--border); padding:12px; background:var(--panel); }
+    .dropzone { max-width:900px; margin:0 auto; border:1px dashed var(--border); border-radius:14px; padding:10px; background:rgba(15,21,32,.6); }
+    .dropzone.drag { border-color: var(--accent); }
+    .row { display:flex; gap:10px; align-items:flex-end; }
+    textarea { width:100%; min-height:52px; max-height:140px; resize:vertical; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#0a1220; color:var(--text); }
+    .files { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
+    .file-pill { border:1px solid var(--border); border-radius:999px; padding:6px 10px; color:var(--muted); display:flex; gap:8px; align-items:center; }
+    .file-pill button { background:transparent; border:0; color:var(--muted); cursor:pointer; }
+    .status { max-width:900px; margin:8px auto 0 auto; color:var(--muted); font-size:12px; }
+    a { color:#93c5fd; }
+    @media (max-width: 920px) {
+      .hamburger { display:inline-block; }
+      .sidebar { position:fixed; left:0; top:0; bottom:0; z-index:10; }
+      .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; z-index:9; }
+      .overlay.show { display:block; }
+    }
+  </style>
 </head>
 <body>
-    <!-- 🔐 AUTH MODAL (NOVO) -->
-    <div v-if="!isAuthenticated" class="auth-overlay" role="dialog" aria-modal="true">
-        <div class="auth-card">
-            <h2>{{ authMode === 'login' ? 'Login' : 'Cadastre-se Grátis' }}</h2>
-            <form @submit.prevent="authMode === 'login' ? doLogin() : doRegister()">
-                <input v-show="authMode !== 'login'" v-model="authForm.name" placeholder="Nome completo" required>
-                <input v-model="authForm.email" type="email" placeholder="Email" required>
-                <input v-model="authForm.password" type="password" placeholder="Senha (min 6)" required minlength="6">
-                <button type="submit" :disabled="loading">
-                    {{ loading ? 'Carregando...' : (authMode === 'login' ? 'Entrar' : 'Criar Conta') }}
-                </button>
-            </form>
-            <p class="toggle-auth" @click="toggleAuthMode">
-                {{ authMode === 'login' ? 'Criar conta gratuita' : 'Já tenho conta' }}
-            </p>
-            
-            <!-- PLANOS TEASER -->
-            <div class="plans-preview">
-                <div class="plan pro">
-                    <h4>🚀 Pro R$97/mês</h4>
-                    <ul>
-                        <li>✅ Uso ilimitado</li>
-                        <li>✅ Armazenamento 10GB</li>
-                        <li>✅ Docs prioritários</li>
-                    </ul>
-                </div>
-            </div>
-        </div>
+<div class="app">
+  <div id="overlay" class="overlay"></div>
+
+  <aside id="sidebar" class="sidebar">
+    <div class="topbar">
+      <button class="btn" id="newChatBtn">+ Nova conversa</button>
+    </div>
+    <div id="chatList" class="chats"></div>
+  </aside>
+
+  <main class="main">
+    <div class="header">
+      <div style="display:flex; align-items:center; gap:10px;">
+        <button class="hamburger" id="hamburgerBtn">☰</button>
+        <div class="title" id="chatTitle">Orquestrador IA</div>
+      </div>
+      <button class="btn secondary" id="refreshBtn">Atualizar</button>
     </div>
 
-    <!-- APP PRINCIPAL (condicional) -->
-    <div v-else id="app">
-        <!-- Sidebar + Main igual ao anterior -->
-        <!-- Com botão user profile -->
-        <div class="user-profile" @click="logout">
-            {{ user.name }} ({{ user.plan }}) ▼
+    <section id="messages" class="messages"></section>
+
+    <div class="composer">
+      <div id="dropzone" class="dropzone">
+        <div class="row">
+          <textarea id="prompt" placeholder="Digite sua pergunta… (arraste arquivos aqui, se quiser)"></textarea>
+          <div style="display:flex; flex-direction:column; gap:8px;">
+            <input id="fileInput" type="file" multiple style="display:none" />
+            <button class="btn secondary" id="attachBtn">Anexar</button>
+            <button class="btn" id="sendBtn">Enviar</button>
+          </div>
         </div>
+        <div id="files" class="files"></div>
+        <div id="status" class="status"></div>
+      </div>
     </div>
+  </main>
+</div>
 
 <script>
-// Vue data + auth
-data() {
-    return {
-        isAuthenticated: false,
-        token: null,
-        user: null,
-        authMode: 'register',  // Começa com register
-        authForm: { name: '', email: '', password: '' },
-        loading: false,
-        // ... resto dos dados
-    };
-},
-async mounted() {
-    await this.initAuth();
-    if (this.isAuthenticated) this.loadChatHistory();
-},
-methods: {
-    async initAuth() {
-        this.token = localStorage.getItem('token');
-        if (this.token) {
-            try {
-                const res = await fetch('/auth/me', {
-                    headers: { Authorization: `Bearer ${this.token}` }
-                });
-                if (res.ok) {
-                    this.user = await res.json();
-                    this.isAuthenticated = true;
-                } else {
-                    localStorage.removeItem('token');
-                }
-            } catch {
-                localStorage.removeItem('token');
-            }
-        }
-    },
-    async doRegister() {
-        this.loading = true;
-        try {
-            const form = new FormData();
-            form.append('full_name', this.authForm.name);
-            form.append('email', this.authForm.email);
-            form.append('password', this.authForm.password);
-            
-            const res = await fetch('/auth/register', {
-                method: 'POST',
-                body: form
-            });
-            const data = await res.json();
-            if (res.ok) {
-                localStorage.setItem('token', data.access_token);
-                this.isAuthenticated = true;
-                this.user = data.user;
-                await this.loadChatHistory();
-            }
-        } catch (e) {
-            alert('Erro no cadastro');
-        }
-        this.loading = false;
-    },
-    async doLogin() {
-        // Similar ao register, mas /auth/login
-    },
-    logout() {
-        localStorage.removeItem('token');
-        this.isAuthenticated = false;
-        this.user = null;
-    },
-    // Resto methods com Authorization header
-    async sendMessage() {
-        const headers = {
-            'Authorization': `Bearer ${this.token}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-        };
-        // ... resto igual
+  // Ajuste para seu backend no Render
+  const API_BASE = ""; // ex: "https://seu-backend.onrender.com"
+
+  let currentChatId = null;
+  let attachedFiles = [];
+  let stream = null;
+
+  const el = (id) => document.getElementById(id);
+
+  function setStatus(text) { el("status").textContent = text || ""; }
+  function scrollToBottom() { el("messages").scrollTop = el("messages").scrollHeight; }
+
+  function addMessage(role, content) {
+    const meta = document.createElement("div");
+    meta.className = "meta";
+    meta.textContent = role === "user" ? "Você" : "Assistente";
+
+    const box = document.createElement("div");
+    box.className = "msg " + (role === "user" ? "user" : "assistant");
+    box.textContent = content;
+
+    el("messages").appendChild(meta);
+    el("messages").appendChild(box);
+    scrollToBottom();
+    return box;
+  }
+
+  function renderFiles() {
+    const wrap = el("files");
+    wrap.innerHTML = "";
+    attachedFiles.forEach((f, idx) => {
+      const pill = document.createElement("div");
+      pill.className = "file-pill";
+      pill.innerHTML = `<span>${f.name}</span>`;
+      const btn = document.createElement("button");
+      btn.textContent = "✕";
+      btn.onclick = () => { attachedFiles.splice(idx, 1); renderFiles(); };
+      pill.appendChild(btn);
+      wrap.appendChild(pill);
+    });
+  }
+
+  async function api(path, opts={}) {
+    const res = await fetch(API_BASE + path, opts);
+    if (!res.ok) {
+      const t = await res.text().catch(()=> "");
+      throw new Error(`HTTP ${res.status} - ${t}`);
     }
-}
+    return res;
+  }
+
+  async function loadChats() {
+    const res = await api("/chats");
+    const chats = await res.json();
+    const list = el("chatList");
+    list.innerHTML = "";
+    chats.forEach(c => {
+      const item = document.createElement("div");
+      item.className = "chat-item" + (c.id === currentChatId ? " active" : "");
+      item.textContent = c.title || `Chat ${c.id}`;
+      item.onclick = () => openChat(c.id, c.title);
+      list.appendChild(item);
+    });
+  }
+
+  async function openChat(chatId, title="") {
+    currentChatId = chatId;
+    el("chatTitle").textContent = title || `Chat ${chatId}`;
+    el("messages").innerHTML = "";
+    setStatus("");
+
+    // Se houver endpoint para buscar mensagens, use aqui.
+    // No seu backend atual, /chats/{id} retorna __dict__ do chat.
+    // Ideal: criar /chats/{id}/messages (GET) para preencher histórico.
+    await loadChats();
+  }
+
+  async function createChat() {
+    const res = await api("/chats", { method:"POST" });
+    const chat = await res.json();
+    await loadChats();
+    await openChat(chat.id, chat.title);
+  }
+
+  function closeStream() {
+    if (stream) { stream.close(); stream = null; }
+  }
+
+  function startSSE(requestId, targetBox) {
+    closeStream();
+    stream = new EventSource(API_BASE + `/stream/${requestId}`);
+
+    stream.addEventListener("status", (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        setStatus(`Fase: ${data.phase}`);
+      } catch { /* ignore */ }
+    });
+
+    stream.addEventListener("delta", (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        targetBox.textContent += data.text || "";
+        scrollToBottom();
+      } catch { /* ignore */ }
+    });
+
+    stream.addEventListener("final", (ev) => {
+      try {
+        const data = JSON.parse(ev.data);
+        // Se o backend enviar "response" estruturado, substitua o texto:
+        if (data.response) targetBox.textContent = data.response;
+
+        // Render opcional de fontes/divergências/checklist:
+        if (data.citations?.length) {
+          targetBox.textContent += "\n\nFONTES:\n" + data.citations.map(c => `- ${c.url || c}`).join("\n");
+        }
+        if (data.divergences?.length) {
+          targetBox.textContent += "\n\nDIVERGÊNCIAS:\n" + data.divergences.map(d => `- ${d.topic}: ${d.ruling}`).join("\n");
+        }
+        if (data.checklist?.length) {
+          targetBox.textContent += "\n\nCHECKLIST:\n" + data.checklist.map(x => `- ${x}`).join("\n");
+        }
+
+      } catch { /* ignore */ }
+      setStatus("");
+      closeStream();
+    });
+
+    stream.addEventListener("error", (ev) => {
+      setStatus("Erro no streaming. Tente novamente.");
+      closeStream();
+    });
+  }
+
+  async function sendMessage() {
+    const prompt = el("prompt").value.trim();
+    if (!prompt) return;
+    if (!currentChatId) await createChat();
+
+    addMessage("user", prompt);
+    const assistantBox = addMessage("assistant", "");
+    setStatus("Enviando…");
+
+    const fd = new FormData();
+    fd.append("user_message", prompt);
+    attachedFiles.forEach(f => fd.append("files", f));
+
+    el("prompt").value = "";
+    attachedFiles = [];
+    renderFiles();
+
+    try {
+      const res = await api(`/chats/${currentChatId}/messages`, { method:"POST", body: fd });
+      const data = await res.json();
+
+      // Se o backend ainda não tiver SSE, cai no modo antigo:
+      if (data.request_id) {
+        startSSE(data.request_id, assistantBox);
+      } else if (data.response) {
+        assistantBox.textContent = data.response;
+        setStatus("");
+      } else {
+        assistantBox.textContent = "Resposta recebida em formato inesperado.";
+        setStatus("");
+      }
+    } catch (e) {
+      assistantBox.textContent = "Falha ao enviar: " + e.message;
+      setStatus("");
+    }
+  }
+
+  // Sidebar toggle (mobile)
+  function toggleSidebar(forceOpen=null) {
+    const sb = el("sidebar");
+    const ov = el("overlay");
+    const isHidden = sb.classList.contains("hidden");
+    const open = forceOpen !== null ? forceOpen : isHidden;
+    sb.classList.toggle("hidden", !open);
+    ov.classList.toggle("show", open);
+  }
+
+  // Drag & drop
+  (function initDnd(){
+    const dz = el("dropzone");
+    dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("drag"); });
+    dz.addEventListener("dragleave", ()=> dz.classList.remove("drag"));
+    dz.addEventListener("drop", (e)=>{
+      e.preventDefault();
+      dz.classList.remove("drag");
+      const files = [...(e.dataTransfer.files || [])];
+      attachedFiles.push(...files);
+      renderFiles();
+    });
+  })();
+
+  // Wiring
+  el("sendBtn").onclick = sendMessage;
+  el("attachBtn").onclick = () => el("fileInput").click();
+  el("fileInput").onchange = (e) => { attachedFiles.push(...[...e.target.files]); renderFiles(); el("fileInput").value=""; };
+  el("newChatBtn").onclick = createChat;
+  el("refreshBtn").onclick = loadChats;
+  el("hamburgerBtn").onclick = () => toggleSidebar();
+  el("overlay").onclick = () => toggleSidebar(false);
+
+  // Init
+  (async function init(){
+    toggleSidebar(false);
+    await loadChats();
+    // cria chat automaticamente para UX mais fluida
+    await createChat();
+  })();
 </script>
+</body>
+</html>
