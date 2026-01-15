@@ -218,11 +218,24 @@
     });
   }
 
-  async function sendMessage() {
-    const prompt = el("prompt").value.trim();
-    if (!prompt) return;
-    if (!currentChatId) await createChat();
+async function sendMessage() {
+    console.log("1. sendMessage() foi chamada."); // <-- LOG 1
 
+    const prompt = el("prompt").value.trim();
+    if (!prompt) {
+        console.log("2. A função parou porque o prompt está vazio."); // <-- LOG 2
+        return;
+    }
+
+    console.log("3. O prompt não está vazio. Verificando se existe um chat ativo..."); // <-- LOG 3
+
+    if (!currentChatId) {
+        console.log("4. Não há chat ativo. Tentando criar um novo chat..."); // <-- LOG 4
+        await createChat();
+        console.log("5. createChat() foi concluído."); // <-- LOG 5
+    }
+
+    console.log("6. Adicionando a mensagem do usuário à interface."); // <-- LOG 6
     addMessage("user", prompt);
     const assistantBox = addMessage("assistant", "");
     setStatus("Enviando…");
@@ -236,24 +249,27 @@
     renderFiles();
 
     try {
-      const res = await api(`/chats/${currentChatId}/messages`, { method:"POST", body: fd });
-      const data = await res.json();
+        console.log(`7. Fazendo a requisição POST para /chats/${currentChatId}/messages`); // <-- LOG 7
+        const res = await api(`/chats/${currentChatId}/messages`, { method:"POST", body: fd });
+        const data = await res.json();
+        console.log("8. Resposta recebida do backend:", data); // <-- LOG 8
 
-      // Se o backend ainda não tiver SSE, cai no modo antigo:
-      if (data.request_id) {
-        startSSE(data.request_id, assistantBox);
-      } else if (data.response) {
-        assistantBox.textContent = data.response;
-        setStatus("");
-      } else {
-        assistantBox.textContent = "Resposta recebida em formato inesperado.";
-        setStatus("");
-      }
+        if (data.request_id) {
+            console.log("9. Resposta contém request_id. Iniciando SSE."); // <-- LOG 9
+            startSSE(data.request_id, assistantBox);
+        } else {
+            // Fallback (não deveria acontecer com o backend v5.0)
+            console.log("10. Resposta não tem request_id. Modo fallback."); // <-- LOG 10
+            assistantBox.textContent = data.response || "Resposta em formato inesperado.";
+            setStatus("");
+        }
     } catch (e) {
-      assistantBox.textContent = "Falha ao enviar: " + e.message;
-      setStatus("");
+        console.error("ERRO CRÍTICO na função sendMessage:", e); // <-- LOG DE ERRO
+        assistantBox.textContent = "Falha ao enviar: " + e.message;
+        setStatus("");
     }
-  }
+}
+
 
   // Sidebar toggle (mobile)
   function toggleSidebar(forceOpen=null) {
