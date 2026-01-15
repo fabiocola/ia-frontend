@@ -3,11 +3,11 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Orquestrador IA</title>
+  <title>OrchestrIA</title>
   <style>
     :root { --bg:#0b0f14; --panel:#111826; --panel2:#0f1520; --text:#e6edf3; --muted:#9fb0c0; --accent:#3b82f6; --border:#1f2a3a; }
     * { box-sizing:border-box; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg); color:var(--text); }
+    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg ); color:var(--text); }
     .app { display:flex; height:100vh; overflow:hidden; }
     .sidebar { width:320px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:transform .2s ease; }
     .sidebar.hidden { transform: translateX(-100%); }
@@ -58,7 +58,7 @@
     <div class="header">
       <div style="display:flex; align-items:center; gap:10px;">
         <button class="hamburger" id="hamburgerBtn">☰</button>
-        <div class="title" id="chatTitle">Orquestrador IA</div>
+        <div class="title" id="chatTitle">OrchestrIA</div>
       </div>
       <button class="btn secondary" id="refreshBtn">Atualizar</button>
     </div>
@@ -83,14 +83,13 @@
 </div>
 
 <script>
-  // Ajuste para seu backend no Render
   const API_BASE = "https://meu-orquestrador-ia.onrender.com";
 
   let currentChatId = null;
   let attachedFiles = [];
   let stream = null;
 
-  const el = (id) => document.getElementById(id);
+  const el = (id ) => document.getElementById(id);
 
   function setStatus(text) { el("status").textContent = text || ""; }
   function scrollToBottom() { el("messages").scrollTop = el("messages").scrollHeight; }
@@ -154,9 +153,14 @@
     el("messages").innerHTML = "";
     setStatus("");
 
-    // Se houver endpoint para buscar mensagens, use aqui.
-    // No seu backend atual, /chats/{id} retorna __dict__ do chat.
-    // Ideal: criar /chats/{id}/messages (GET) para preencher histórico.
+    try {
+        const res = await api(`/chats/${chatId}/messages`);
+        const messages = await res.json();
+        messages.forEach(msg => addMessage(msg.role, msg.content));
+    } catch (error) {
+        console.error("Erro ao carregar mensagens do chat:", error);
+    }
+    
     await loadChats();
   }
 
@@ -175,67 +179,65 @@
     closeStream();
     stream = new EventSource(API_BASE + `/stream/${requestId}`);
 
+    const statusTranslations = {
+        "starting": "Iniciando debate...",
+        "rag_search": "Buscando em seus documentos...",
+        "round1_multi_model": "Consultando IAs (Round 1)...",
+        "debate_round_2": "IAs debatendo e criticando (Round 2)...",
+        "judge_synthesis": "Juiz formulando a resposta final...",
+        "connected": "Conectado ao servidor. Aguardando debate...",
+        "pipeline_running": "Debate em andamento..."
+    };
+
     stream.addEventListener("status", (ev) => {
-      try {
-        const data = JSON.parse(ev.data);
-        setStatus(`Fase: ${data.phase}`);
-      } catch { /* ignore */ }
+        try {
+            const data = JSON.parse(ev.data);
+            const friendlyStatus = statusTranslations[data.phase] || `Processando: ${data.phase}`;
+            setStatus(friendlyStatus);
+        } catch { /* ignore */ }
     });
 
     stream.addEventListener("delta", (ev) => {
-      try {
-        const data = JSON.parse(ev.data);
-        targetBox.textContent += data.text || "";
-        scrollToBottom();
-      } catch { /* ignore */ }
+        try {
+            const data = JSON.parse(ev.data);
+            targetBox.textContent += data.text || "";
+            scrollToBottom();
+        } catch { /* ignore */ }
     });
 
     stream.addEventListener("final", (ev) => {
-      try {
-        const data = JSON.parse(ev.data);
-        // Se o backend enviar "response" estruturado, substitua o texto:
-        if (data.response) targetBox.textContent = data.response;
-
-        // Render opcional de fontes/divergências/checklist:
-        if (data.citations?.length) {
-          targetBox.textContent += "\n\nFONTES:\n" + data.citations.map(c => `- ${c.url || c}`).join("\n");
-        }
-        if (data.divergences?.length) {
-          targetBox.textContent += "\n\nDIVERGÊNCIAS:\n" + data.divergences.map(d => `- ${d.topic}: ${d.ruling}`).join("\n");
-        }
-        if (data.checklist?.length) {
-          targetBox.textContent += "\n\nCHECKLIST:\n" + data.checklist.map(x => `- ${x}`).join("\n");
-        }
-
-      } catch { /* ignore */ }
-      setStatus("");
-      closeStream();
+        try {
+            const data = JSON.parse(ev.data);
+            if (data.response) targetBox.textContent = data.response;
+        } catch { /* ignore */ }
+        setStatus("");
+        closeStream();
     });
 
     stream.addEventListener("error", (ev) => {
-      setStatus("Erro no streaming. Tente novamente.");
-      closeStream();
+        setStatus("Erro no streaming. Tente novamente.");
+        closeStream();
     });
   }
 
-async function sendMessage() {
-    console.log("1. sendMessage() foi chamada."); // <-- LOG 1
+  async function sendMessage() {
+    console.log("1. sendMessage() foi chamada.");
 
     const prompt = el("prompt").value.trim();
     if (!prompt) {
-        console.log("2. A função parou porque o prompt está vazio."); // <-- LOG 2
+        console.log("2. A função parou porque o prompt está vazio.");
         return;
     }
 
-    console.log("3. O prompt não está vazio. Verificando se existe um chat ativo..."); // <-- LOG 3
+    console.log("3. O prompt não está vazio. Verificando se existe um chat ativo...");
 
     if (!currentChatId) {
-        console.log("4. Não há chat ativo. Tentando criar um novo chat..."); // <-- LOG 4
+        console.log("4. Não há chat ativo. Tentando criar um novo chat...");
         await createChat();
-        console.log("5. createChat() foi concluído."); // <-- LOG 5
+        console.log("5. createChat() foi concluído.");
     }
 
-    console.log("6. Adicionando a mensagem do usuário à interface."); // <-- LOG 6
+    console.log("6. Adicionando a mensagem do usuário à interface.");
     addMessage("user", prompt);
     const assistantBox = addMessage("assistant", "");
     setStatus("Enviando…");
@@ -249,29 +251,26 @@ async function sendMessage() {
     renderFiles();
 
     try {
-        console.log(`7. Fazendo a requisição POST para /chats/${currentChatId}/messages`); // <-- LOG 7
+        console.log(`7. Fazendo a requisição POST para /chats/${currentChatId}/messages`);
         const res = await api(`/chats/${currentChatId}/messages`, { method:"POST", body: fd });
         const data = await res.json();
-        console.log("8. Resposta recebida do backend:", data); // <-- LOG 8
+        console.log("8. Resposta recebida do backend:", data);
 
         if (data.request_id) {
-            console.log("9. Resposta contém request_id. Iniciando SSE."); // <-- LOG 9
+            console.log("9. Resposta contém request_id. Iniciando SSE.");
             startSSE(data.request_id, assistantBox);
         } else {
-            // Fallback (não deveria acontecer com o backend v5.0)
-            console.log("10. Resposta não tem request_id. Modo fallback."); // <-- LOG 10
+            console.log("10. Resposta não tem request_id. Modo fallback.");
             assistantBox.textContent = data.response || "Resposta em formato inesperado.";
             setStatus("");
         }
     } catch (e) {
-        console.error("ERRO CRÍTICO na função sendMessage:", e); // <-- LOG DE ERRO
+        console.error("ERRO CRÍTICO na função sendMessage:", e);
         assistantBox.textContent = "Falha ao enviar: " + e.message;
         setStatus("");
     }
-}
+  }
 
-
-  // Sidebar toggle (mobile)
   function toggleSidebar(forceOpen=null) {
     const sb = el("sidebar");
     const ov = el("overlay");
@@ -281,7 +280,6 @@ async function sendMessage() {
     ov.classList.toggle("show", open);
   }
 
-  // Drag & drop
   (function initDnd(){
     const dz = el("dropzone");
     dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("drag"); });
@@ -295,7 +293,6 @@ async function sendMessage() {
     });
   })();
 
-  // Wiring
   el("sendBtn").onclick = sendMessage;
   el("attachBtn").onclick = () => el("fileInput").click();
   el("fileInput").onchange = (e) => { attachedFiles.push(...[...e.target.files]); renderFiles(); el("fileInput").value=""; };
@@ -304,12 +301,12 @@ async function sendMessage() {
   el("hamburgerBtn").onclick = () => toggleSidebar();
   el("overlay").onclick = () => toggleSidebar(false);
 
-  // Init
   (async function init(){
     toggleSidebar(false);
     await loadChats();
-    // cria chat automaticamente para UX mais fluida
-    await createChat();
+    if (!currentChatId) {
+        await createChat();
+    }
   })();
 </script>
 </body>
