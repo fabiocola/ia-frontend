@@ -1,313 +1,284 @@
-<!doctype html>
-<html lang="pt-BR">
+<!DOCTYPE html>
+<html lang="pt-br">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>OrchestrIA</title>
-  <style>
-    :root { --bg:#0b0f14; --panel:#111826; --panel2:#0f1520; --text:#e6edf3; --muted:#9fb0c0; --accent:#3b82f6; --border:#1f2a3a; }
-    * { box-sizing:border-box; }
-    body { margin:0; font-family: ui-sans-serif, system-ui, -apple-system, Segoe UI, Roboto, Arial; background:var(--bg ); color:var(--text); }
-    .app { display:flex; height:100vh; overflow:hidden; }
-    .sidebar { width:320px; background:var(--panel); border-right:1px solid var(--border); display:flex; flex-direction:column; transition:transform .2s ease; }
-    .sidebar.hidden { transform: translateX(-100%); }
-    .topbar { display:flex; align-items:center; gap:10px; padding:12px; border-bottom:1px solid var(--border); }
-    .hamburger { display:none; background:transparent; border:1px solid var(--border); color:var(--text); padding:8px 10px; border-radius:10px; cursor:pointer; }
-    .btn { background:var(--accent); border:0; color:#fff; padding:10px 12px; border-radius:10px; cursor:pointer; font-weight:600; }
-    .btn.secondary { background:transparent; border:1px solid var(--border); color:var(--text); }
-    .chats { padding:10px; overflow:auto; }
-    .chat-item { padding:10px; border:1px solid var(--border); border-radius:12px; margin-bottom:8px; background:var(--panel2); cursor:pointer; }
-    .chat-item.active { border-color: var(--accent); }
-    .main { flex:1; display:flex; flex-direction:column; }
-    .header { padding:12px 14px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between; background:rgba(17,24,38,.6); backdrop-filter: blur(8px); }
-    .title { font-weight:700; }
-    .messages { flex:1; overflow:auto; padding:16px; }
-    .msg { max-width: 900px; margin: 0 auto 12px auto; padding:12px 14px; border:1px solid var(--border); border-radius:14px; background:var(--panel2); white-space:pre-wrap; line-height:1.45; }
-    .msg.user { border-color: rgba(59,130,246,.5); }
-    .meta { max-width:900px; margin:0 auto 10px auto; color:var(--muted); font-size:12px; }
-    .composer { border-top:1px solid var(--border); padding:12px; background:var(--panel); }
-    .dropzone { max-width:900px; margin:0 auto; border:1px dashed var(--border); border-radius:14px; padding:10px; background:rgba(15,21,32,.6); }
-    .dropzone.drag { border-color: var(--accent); }
-    .row { display:flex; gap:10px; align-items:flex-end; }
-    textarea { width:100%; min-height:52px; max-height:140px; resize:vertical; border:1px solid var(--border); border-radius:12px; padding:10px 12px; background:#0a1220; color:var(--text); }
-    .files { margin-top:10px; display:flex; flex-wrap:wrap; gap:8px; }
-    .file-pill { border:1px solid var(--border); border-radius:999px; padding:6px 10px; color:var(--muted); display:flex; gap:8px; align-items:center; }
-    .file-pill button { background:transparent; border:0; color:var(--muted); cursor:pointer; }
-    .status { max-width:900px; margin:8px auto 0 auto; color:var(--muted); font-size:12px; }
-    a { color:#93c5fd; }
-    @media (max-width: 920px) {
-      .hamburger { display:inline-block; }
-      .sidebar { position:fixed; left:0; top:0; bottom:0; z-index:10; }
-      .overlay { position:fixed; inset:0; background:rgba(0,0,0,.45); display:none; z-index:9; }
-      .overlay.show { display:block; }
-    }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrchestrIA - Orquestrador de Inteligência Artificial</title>
+    <style>
+        :root {
+            --primary-color: #2563eb;
+            --bg-color: #f8fafc;
+            --chat-bg: #ffffff;
+            --user-msg: #dbeafe;
+            --ai-msg: #f1f5f9;
+            --text-color: #1e293b;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-color);
+            margin: 0;
+            display: flex;
+            height: 100vh;
+        }
+
+        /* Sidebar */
+        #sidebar {
+            width: 260px;
+            background-color: #0f172a;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            padding: 15px;
+        }
+
+        .new-chat-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 12px;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: bold;
+            margin-bottom: 20px;
+        }
+
+        #chat-list {
+            flex-grow: 1;
+            overflow-y: auto;
+        }
+
+        .chat-item {
+            padding: 10px;
+            margin-bottom: 5px;
+            border-radius: 5px;
+            cursor: pointer;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .chat-item:hover {
+            background-color: #1e293b;
+        }
+
+        /* Main Chat Area */
+        #main-content {
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            max-width: 1000px;
+            margin: 0 auto;
+            width: 100%;
+            background-color: var(--chat-bg);
+            box-shadow: 0 0 15px rgba(0,0,0,0.05);
+        }
+
+        #chat-window {
+            flex-grow: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+        }
+
+        .message {
+            max-width: 80%;
+            padding: 12px 16px;
+            border-radius: 15px;
+            line-height: 1.5;
+            word-wrap: break-word;
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background-color: var(--user-msg);
+            border-bottom-right-radius: 2px;
+        }
+
+        .ai-message {
+            align-self: flex-start;
+            background-color: var(--ai-msg);
+            border-bottom-left-radius: 2px;
+        }
+
+        /* Input Area */
+        #input-area {
+            padding: 20px;
+            border-top: 1px solid #e2e8f0;
+            display: flex;
+            gap: 10px;
+        }
+
+        #user-input {
+            flex-grow: 1;
+            padding: 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 8px;
+            outline: none;
+        }
+
+        #send-btn {
+            background-color: var(--primary-color);
+            color: white;
+            border: none;
+            padding: 0 20px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+
+        #send-btn:disabled {
+            background-color: #94a3b8;
+        }
+
+        .loading {
+            font-style: italic;
+            color: #64748b;
+            font-size: 0.9em;
+        }
+    </style>
 </head>
 <body>
-<div class="app">
-  <div id="overlay" class="overlay"></div>
 
-  <aside id="sidebar" class="sidebar">
-    <div class="topbar">
-      <button class="btn" id="newChatBtn">+ Nova conversa</button>
-    </div>
-    <div id="chatList" class="chats"></div>
-  </aside>
-
-  <main class="main">
-    <div class="header">
-      <div style="display:flex; align-items:center; gap:10px;">
-        <button class="hamburger" id="hamburgerBtn">☰</button>
-        <div class="title" id="chatTitle">OrchestrIA</div>
-      </div>
-      <button class="btn secondary" id="refreshBtn">Atualizar</button>
-    </div>
-
-    <section id="messages" class="messages"></section>
-
-    <div class="composer">
-      <div id="dropzone" class="dropzone">
-        <div class="row">
-          <textarea id="prompt" placeholder="Digite sua pergunta… (arraste arquivos aqui, se quiser)"></textarea>
-          <div style="display:flex; flex-direction:column; gap:8px;">
-            <input id="fileInput" type="file" multiple style="display:none" />
-            <button class="btn secondary" id="attachBtn">Anexar</button>
-            <button class="btn" id="sendBtn">Enviar</button>
-          </div>
+    <div id="sidebar">
+        <button class="new-chat-btn" onclick="createNewChat()">+ Nova Conversa</button>
+        <div id="chat-list">
+            <!-- Lista de chats será carregada aqui -->
         </div>
-        <div id="files" class="files"></div>
-        <div id="status" class="status"></div>
-      </div>
     </div>
-  </main>
-</div>
 
-<script>
-  const API_BASE = "/api";
+    <div id="main-content">
+        <div id="chat-window">
+            <div class="message ai-message">
+                Olá! Eu sou o OrchestrIA. Como posso ajudar você hoje?
+            </div>
+        </div>
 
-  let currentChatId = null;
-  let attachedFiles = [];
-  let stream = null;
+        <div id="input-area">
+            <input type="text" id="user-input" placeholder="Digite sua pergunta aqui..." onkeypress="handleKeyPress(event)">
+            <button id="send-btn" onclick="sendMessage()">Enviar</button>
+        </div>
+    </div>
 
-  const el = (id ) => document.getElementById(id);
+    <script>
+        // CONFIGURAÇÃO CRUCIAL: Usando o Proxy Reverso da Render
+        const API_BASE = "/api"; 
+        
+        let currentChatId = null;
 
-  function setStatus(text) { el("status").textContent = text || ""; }
-  function scrollToBottom() { el("messages").scrollTop = el("messages").scrollHeight; }
+        // Inicialização
+        window.onload = () => {
+            loadChats();
+        };
 
-  function addMessage(role, content) {
-    const meta = document.createElement("div");
-    meta.className = "meta";
-    meta.textContent = role === "user" ? "Você" : "Assistente";
-
-    const box = document.createElement("div");
-    box.className = "msg " + (role === "user" ? "user" : "assistant");
-    box.textContent = content;
-
-    el("messages").appendChild(meta);
-    el("messages").appendChild(box);
-    scrollToBottom();
-    return box;
-  }
-
-  function renderFiles() {
-    const wrap = el("files");
-    wrap.innerHTML = "";
-    attachedFiles.forEach((f, idx) => {
-      const pill = document.createElement("div");
-      pill.className = "file-pill";
-      pill.innerHTML = `<span>${f.name}</span>`;
-      const btn = document.createElement("button");
-      btn.textContent = "✕";
-      btn.onclick = () => { attachedFiles.splice(idx, 1); renderFiles(); };
-      pill.appendChild(btn);
-      wrap.appendChild(pill);
-    });
-  }
-
-  async function api(path, opts={}) {
-    const res = await fetch(API_BASE + path, opts);
-    if (!res.ok) {
-      const t = await res.text().catch(()=> "");
-      throw new Error(`HTTP ${res.status} - ${t}`);
-    }
-    return res;
-  }
-
-  async function loadChats() {
-    const res = await api("/chats");
-    const chats = await res.json();
-    const list = el("chatList");
-    list.innerHTML = "";
-    chats.forEach(c => {
-      const item = document.createElement("div");
-      item.className = "chat-item" + (c.id === currentChatId ? " active" : "");
-      item.textContent = c.title || `Chat ${c.id}`;
-      item.onclick = () => openChat(c.id, c.title);
-      list.appendChild(item);
-    });
-  }
-
-  async function openChat(chatId, title="") {
-    currentChatId = chatId;
-    el("chatTitle").textContent = title || `Chat ${chatId}`;
-    el("messages").innerHTML = "";
-    setStatus("");
-
-    try {
-        const res = await api(`/chats/${chatId}/messages`);
-        const messages = await res.json();
-        messages.forEach(msg => addMessage(msg.role, msg.content));
-    } catch (error) {
-        console.error("Erro ao carregar mensagens do chat:", error);
-    }
-    
-    await loadChats();
-  }
-
-  async function createChat() {
-    const res = await api("/chats", { method:"POST" });
-    const chat = await res.json();
-    await loadChats();
-    await openChat(chat.id, chat.title);
-  }
-
-  function closeStream() {
-    if (stream) { stream.close(); stream = null; }
-  }
-
-  function startSSE(requestId, targetBox) {
-    closeStream();
-    stream = new EventSource(API_BASE + `/stream/${requestId}`);
-
-    const statusTranslations = {
-        "starting": "Iniciando debate...",
-        "rag_search": "Buscando em seus documentos...",
-        "round1_multi_model": "Consultando IAs (Round 1)...",
-        "debate_round_2": "IAs debatendo e criticando (Round 2)...",
-        "judge_synthesis": "Juiz formulando a resposta final...",
-        "connected": "Conectado ao servidor. Aguardando debate...",
-        "pipeline_running": "Debate em andamento..."
-    };
-
-    stream.addEventListener("status", (ev) => {
-        try {
-            const data = JSON.parse(ev.data);
-            const friendlyStatus = statusTranslations[data.phase] || `Processando: ${data.phase}`;
-            setStatus(friendlyStatus);
-        } catch { /* ignore */ }
-    });
-
-    stream.addEventListener("delta", (ev) => {
-        try {
-            const data = JSON.parse(ev.data);
-            targetBox.textContent += data.text || "";
-            scrollToBottom();
-        } catch { /* ignore */ }
-    });
-
-    stream.addEventListener("final", (ev) => {
-        try {
-            const data = JSON.parse(ev.data);
-            if (data.response) targetBox.textContent = data.response;
-        } catch { /* ignore */ }
-        setStatus("");
-        closeStream();
-    });
-
-    stream.addEventListener("error", (ev) => {
-        setStatus("Erro no streaming. Tente novamente.");
-        closeStream();
-    });
-  }
-
-  async function sendMessage() {
-    console.log("1. sendMessage() foi chamada.");
-
-    const prompt = el("prompt").value.trim();
-    if (!prompt) {
-        console.log("2. A função parou porque o prompt está vazio.");
-        return;
-    }
-
-    console.log("3. O prompt não está vazio. Verificando se existe um chat ativo...");
-
-    if (!currentChatId) {
-        console.log("4. Não há chat ativo. Tentando criar um novo chat...");
-        await createChat();
-        console.log("5. createChat() foi concluído.");
-    }
-
-    console.log("6. Adicionando a mensagem do usuário à interface.");
-    addMessage("user", prompt);
-    const assistantBox = addMessage("assistant", "");
-    setStatus("Enviando…");
-
-    const fd = new FormData();
-    fd.append("user_message", prompt);
-    attachedFiles.forEach(f => fd.append("files", f));
-
-    el("prompt").value = "";
-    attachedFiles = [];
-    renderFiles();
-
-    try {
-        console.log(`7. Fazendo a requisição POST para /chats/${currentChatId}/messages`);
-        const res = await api(`/chats/${currentChatId}/messages`, { method:"POST", body: fd });
-        const data = await res.json();
-        console.log("8. Resposta recebida do backend:", data);
-
-        if (data.request_id) {
-            console.log("9. Resposta contém request_id. Iniciando SSE.");
-            startSSE(data.request_id, assistantBox);
-        } else {
-            console.log("10. Resposta não tem request_id. Modo fallback.");
-            assistantBox.textContent = data.response || "Resposta em formato inesperado.";
-            setStatus("");
+        async function loadChats() {
+            try {
+                const response = await fetch(`${API_BASE}/chats`);
+                const chats = await response.json();
+                const list = document.getElementById('chat-list');
+                list.innerHTML = '';
+                chats.forEach(chat => {
+                    const item = document.createElement('div');
+                    item.className = 'chat-item';
+                    item.textContent = chat.title || 'Conversa sem título';
+                    item.onclick = () => selectChat(chat.id);
+                    list.appendChild(item);
+                });
+            } catch (error) {
+                console.error('Erro ao carregar chats:', error);
+            }
         }
-    } catch (e) {
-        console.error("ERRO CRÍTICO na função sendMessage:", e);
-        assistantBox.textContent = "Falha ao enviar: " + e.message;
-        setStatus("");
-    }
-  }
 
-  function toggleSidebar(forceOpen=null) {
-    const sb = el("sidebar");
-    const ov = el("overlay");
-    const isHidden = sb.classList.contains("hidden");
-    const open = forceOpen !== null ? forceOpen : isHidden;
-    sb.classList.toggle("hidden", !open);
-    ov.classList.toggle("show", open);
-  }
+        async function createNewChat() {
+            try {
+                const response = await fetch(`${API_BASE}/chats`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ title: "Nova Conversa " + new Date().toLocaleTimeString() })
+                });
+                const chat = await response.json();
+                currentChatId = chat.id;
+                document.getElementById('chat-window').innerHTML = '';
+                addMessage('ai', 'Nova conversa iniciada. Como posso ajudar?');
+                loadChats();
+            } catch (error) {
+                alert('Erro ao criar chat. Verifique a conexão.');
+            }
+        }
 
-  (function initDnd(){
-    const dz = el("dropzone");
-    dz.addEventListener("dragover", (e)=>{ e.preventDefault(); dz.classList.add("drag"); });
-    dz.addEventListener("dragleave", ()=> dz.classList.remove("drag"));
-    dz.addEventListener("drop", (e)=>{
-      e.preventDefault();
-      dz.classList.remove("drag");
-      const files = [...(e.dataTransfer.files || [])];
-      attachedFiles.push(...files);
-      renderFiles();
-    });
-  })();
+        async function selectChat(chatId) {
+            currentChatId = chatId;
+            const window = document.getElementById('chat-window');
+            window.innerHTML = '<div class="loading">Carregando mensagens...</div>';
+            
+            try {
+                const response = await fetch(`${API_BASE}/chats/${chatId}/messages`);
+                const messages = await response.json();
+                window.innerHTML = '';
+                messages.forEach(msg => {
+                    addMessage(msg.role === 'user' ? 'user' : 'ai', msg.content);
+                });
+            } catch (error) {
+                window.innerHTML = '<div class="message ai-message">Erro ao carregar histórico.</div>';
+            }
+        }
 
-  el("sendBtn").onclick = sendMessage;
-  el("attachBtn").onclick = () => el("fileInput").click();
-  el("fileInput").onchange = (e) => { attachedFiles.push(...[...e.target.files]); renderFiles(); el("fileInput").value=""; };
-  el("newChatBtn").onclick = createChat;
-  el("refreshBtn").onclick = loadChats;
-  el("hamburgerBtn").onclick = () => toggleSidebar();
-  el("overlay").onclick = () => toggleSidebar(false);
+        function addMessage(role, text) {
+            const window = document.getElementById('chat-window');
+            const div = document.createElement('div');
+            div.className = `message ${role}-message`;
+            div.textContent = text;
+            window.appendChild(div);
+            window.scrollTop = window.scrollHeight;
+        }
 
-  (async function init(){
-    toggleSidebar(false);
-    await loadChats();
-    if (!currentChatId) {
-        await createChat();
-    }
-  })();
-</script>
+        async function sendMessage() {
+            const input = document.getElementById('user-input');
+            const btn = document.getElementById('send-btn');
+            const text = input.value.trim();
+
+            if (!text) return;
+            if (!currentChatId) {
+                await createNewChat();
+            }
+
+            // UI Update
+            addMessage('user', text);
+            input.value = '';
+            input.disabled = true;
+            btn.disabled = true;
+
+            const loadingDiv = document.createElement('div');
+            loadingDiv.className = 'loading';
+            loadingDiv.id = 'temp-loading';
+            loadingDiv.textContent = 'Orquestrando debate entre IAs...';
+            document.getElementById('chat-window').appendChild(loadingDiv);
+
+            try {
+                const response = await fetch(`${API_BASE}/chats/${currentChatId}/messages`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ content: text })
+                });
+                
+                const data = await response.json();
+                document.getElementById('temp-loading').remove();
+                addMessage('ai', data.content);
+            } catch (error) {
+                document.getElementById('temp-loading').remove();
+                addMessage('ai', 'Desculpe, ocorreu um erro na orquestração. Verifique os logs do backend.');
+            } finally {
+                input.disabled = false;
+                btn.disabled = false;
+                input.focus();
+            }
+        }
+
+        function handleKeyPress(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+    </script>
 </body>
 </html>
