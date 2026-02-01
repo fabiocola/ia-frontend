@@ -173,17 +173,26 @@
             loadChats();
         };
 
+        function getChatId(chat) {
+            return chat?.id ?? chat?.chat_id ?? chat?.chatId ?? chat?.uuid ?? chat?._id ?? null;
+        }
+
         async function loadChats() {
             try {
                 const response = await fetch(`${API_BASE}/chats`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const chats = await response.json();
                 const list = document.getElementById('chat-list');
                 list.innerHTML = '';
                 chats.forEach(chat => {
+                    const chatId = getChatId(chat);
+                    if (!chatId) return;
                     const item = document.createElement('div');
                     item.className = 'chat-item';
                     item.textContent = chat.title || 'Conversa sem título';
-                    item.onclick = () => selectChat(chat.id);
+                    item.onclick = () => selectChat(chatId);
                     list.appendChild(item);
                 });
             } catch (error) {
@@ -198,23 +207,38 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ title: "Nova Conversa " + new Date().toLocaleTimeString() })
                 });
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const chat = await response.json();
-                currentChatId = chat.id;
+                currentChatId = getChatId(chat);
+                if (!currentChatId) {
+                    throw new Error('Chat ID ausente na resposta.');
+                }
                 document.getElementById('chat-window').innerHTML = '';
                 addMessage('ai', 'Nova conversa iniciada. Como posso ajudar?');
                 loadChats();
+                return currentChatId;
             } catch (error) {
                 alert('Erro ao criar chat. Verifique a conexão.');
+                throw error;
             }
         }
 
         async function selectChat(chatId) {
+            if (!chatId) {
+                addMessage('ai', 'N??o foi poss??vel abrir este chat (ID inv??lido).');
+                return;
+            }
             currentChatId = chatId;
             const window = document.getElementById('chat-window');
             window.innerHTML = '<div class="loading">Carregando mensagens...</div>';
             
             try {
                 const response = await fetch(`${API_BASE}/chats/${chatId}/messages`);
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const messages = await response.json();
                 window.innerHTML = '';
                 messages.forEach(msg => {
@@ -241,7 +265,11 @@
 
             if (!text) return;
             if (!currentChatId) {
-                await createNewChat();
+                try {
+                    await createNewChat();
+                } catch (error) {
+                    return;
+                }
             }
 
             // UI Update
@@ -263,6 +291,9 @@
                     body: JSON.stringify({ content: text })
                 });
                 
+                if (!response.ok) {
+                    throw new Error(`HTTP ${response.status}`);
+                }
                 const data = await response.json();
                 document.getElementById('temp-loading').remove();
                 addMessage('ai', data.content);
